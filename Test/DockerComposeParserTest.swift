@@ -11,46 +11,81 @@ import Yams
 
 @Suite("Include Parsing Tests")
 struct IncludeTestSuite {
+    
     @Test(
-        "Test Include parsing",
+        "Test Include object parsing",
         arguments: [
             """
-            include:
-               - path:
-                   - ${BASE}/compose.yaml
-                   - ./commons-override.yaml
-                 env_file:
-                   - ../another/.env
-                   - ../another/dev.env
-            """,
+            path: ../commons/compose2.yaml
+            project_directory: ..
+            env_file: ../another/.env
             """
-            include:
-               - path: ../commons/compose.yaml
-                 project_directory: ..
-                 env_file: ../another/.env
-               - path: ../commons/compose2.yaml
-                 project_directory: ..
-                 env_file: ../another/.env
-            """,
+        ]
+    )
+    func testIncludeFullObjectParsing(_ yaml: String) async throws {
+        let node = try Yams.compose(yaml: yaml)
+        #expect(node != nil)
+        let include = try Include(node!, envs:[:])
+        #expect(include.path == ["../commons/compose2.yaml"])
+        #expect(include.project_directory == "..")
+        #expect(include.env_file == ["../another/.env"])
+    }
+    
+    @Test(
+        "Test Include array parsing",
+        arguments: [
             """
-            include:
-              - ../commons/compose.yaml
-              - ../another_domain/compose.yaml
+            - ../commons/compose.yaml
+            - ../another_domain/compose.yaml
             """,
         ]
     )
-    func parseInclude(_ yaml: String) async throws {
+    func testIncludeArrayParsing(_ yaml: String) async throws {
         let node = try Yams.compose(yaml: yaml)
         let envs = ["BASE": "../commons"]
         #expect(node != nil)
-        #expect(node?.mapping != nil)
-        if let pairs = node?.mapping {
-            let includeNode = pairs["include"]
-            #expect(includeNode != nil)
-            let includes = try includeNode!.array(of: Include.self, envs: envs)
-            print("Yaml \(yaml):\n Path: \(includes.compactMap(\.path)), \n Env:\(includes.compactMap(\.env_file)).")
-            #expect(!includes.isEmpty)
-        }
+        let include = try Include(node!, envs:envs)
+        #expect(include.path.count == 2)
+    }
+    
+    
+    @Test(
+        "Test array path parsing",
+        arguments: [
+            """
+            path:
+               - ${BASE}/compose.yaml
+               - ./commons-override.yaml
+            """,
+        ]
+    )
+    func parseArrayPath(_ yaml: String) async throws {
+        let node = try Yams.compose(yaml: yaml)
+        let envs = ["BASE": "../commons"]
+
+        #expect(node != nil)
+
+        let include = try Include(node!, envs:envs)
+        #expect(include.path.count == 2)
+        #expect(include.path.contains("../commons/compose.yaml"))
+    }
+    
+    @Test(
+        "Test single path parsing",
+        arguments: [
+            """
+            path: ../commons/compose.yaml
+            """,
+        ]
+    )
+    func parseSinglePath(_ yaml: String) async throws {
+        let node = try Yams.compose(yaml: yaml)
+        let envs = ["BASE": "../commons"]
+
+        #expect(node != nil)
+
+        let include = try Include(node!, envs:envs)
+        #expect(include.path.count == 1)
     }
 }
 
@@ -136,66 +171,6 @@ struct SecretTestSuite {
 }
 
 
-@Suite("ExternalVolume Parsing Tests")
-struct ExternalVolumeTestSuite {
-
-    @Test("Test ExternalVolume parsing - boolean true")
-    func parseExternalVolumeBoolTrue() throws {
-        let node = try Yams.compose(yaml: "true")
-        let external = try Volume.ExternalVolume(node!, envs: [:])
-        #expect(external.isExternal == true)
-        #expect(external.name == nil)
-    }
-
-    @Test("Test ExternalVolume parsing - boolean false")
-    func parseExternalVolumeBoolFalse() throws {
-        let node = try Yams.compose(yaml: "false")
-        let external = try Volume.ExternalVolume(node!, envs: [:])
-        #expect(external.isExternal == false)
-        #expect(external.name == nil)
-    }
-
-    @Test("Test ExternalVolume parsing - mapping with name")
-    func parseExternalVolumeMappingWithName() throws {
-        let node = try Yams.compose(yaml: "name: my_external_volume")
-        let external = try Volume.ExternalVolume(node!, envs: [:])
-        #expect(external.isExternal == true)
-        #expect(external.name == "my_external_volume")
-    }
-
-    @Test("Test ExternalVolume parsing - empty mapping")
-    func parseExternalVolumeEmptyMapping() throws {
-        let node = try Yams.compose(yaml: "{}")
-        let external = try Volume.ExternalVolume(node!, envs: [:])
-        #expect(external.isExternal == true)
-        #expect(external.name == nil)
-    }
-
-    @Test("Test ExternalVolume parsing - env var interpolation in name")
-    func parseExternalVolumeEnvInterpolation() throws {
-        let node = try Yams.compose(yaml: "name: ${PROJECT_NAME}_vol")
-        let external = try Volume.ExternalVolume(
-            node!,
-            envs: ["PROJECT_NAME": "myapp"]
-        )
-        #expect(external.name == "myapp_vol")
-    }
-
-    @Test(
-        "Test ExternalVolume parsing - invalid node throws",
-        arguments: [
-            "[a, b, c]",
-            "just_a_string",
-        ]
-    )
-    func parseExternalVolumeInvalid(_ yaml: String) throws {
-        let node = try Yams.compose(yaml: yaml)
-        #expect(throws: (any Error).self) {
-            try Volume.ExternalVolume(node!, envs: [:])
-        }
-    }
-}
-
 
 @Suite("Volume Parsing Tests")
 struct VolumeTestSuite {
@@ -244,8 +219,7 @@ struct VolumeTestSuite {
         let node = try Yams.compose(yaml: yaml)
         let volume = try Volume(node!, envs: [:])
 
-        #expect(volume.external?.isExternal == true)
-        #expect(volume.external?.name == nil)
+        #expect(volume.external == true)
     }
 
     @Test("Test Volume parsing - external as boolean false")
@@ -256,34 +230,9 @@ struct VolumeTestSuite {
         let node = try Yams.compose(yaml: yaml)
         let volume = try Volume(node!, envs: [:])
 
-        #expect(volume.external?.isExternal == false)
-        #expect(volume.external?.name == nil)
+        #expect(volume.external == false)
     }
 
-    @Test("Test Volume parsing - external as object with name")
-    func parseVolumeExternalObjectWithName() throws {
-        let yaml = """
-        external:
-          name: my_external_volume
-        """
-        let node = try Yams.compose(yaml: yaml)
-        let volume = try Volume(node!, envs: [:])
-
-        #expect(volume.external?.isExternal == true)
-        #expect(volume.external?.name == "my_external_volume")
-    }
-
-    @Test("Test Volume parsing - external as empty object")
-    func parseVolumeExternalEmptyObject() throws {
-        let yaml = """
-        external: {}
-        """
-        let node = try Yams.compose(yaml: yaml)
-        let volume = try Volume(node!, envs: [:])
-
-        #expect(volume.external?.isExternal == true)
-        #expect(volume.external?.name == nil)
-    }
 
     @Test("Test Volume parsing - env var interpolation")
     func parseVolumeEnvInterpolation() throws {
@@ -293,8 +242,7 @@ struct VolumeTestSuite {
           device: ${DEVICE_PATH}
         labels:
           owner: ${OWNER}
-        external:
-          name: ${PROJECT_NAME}_external
+        external: true
         """
         let node = try Yams.compose(yaml: yaml)
         let volume = try Volume(
@@ -309,7 +257,6 @@ struct VolumeTestSuite {
         #expect(volume.name == "myapp_data")
         #expect(volume.driver_opts?["device"] == "/dev/sdb1")
         #expect(volume.labels?["owner"] == "platform-team")
-        #expect(volume.external?.name == "myapp_external")
     }
 
     @Test(
@@ -495,65 +442,6 @@ struct IPAMConfigTestSuite {
     }
 }
 
-@Suite("ExternalNetwork Parsing Tests")
-struct ExternalNetworkTestSuite {
-
-    @Test("Test ExternalNetwork parsing - boolean true")
-    func parseExternalNetworkBoolTrue() throws {
-        let node = try Yams.compose(yaml: "true")
-        let external = try Network.ExternalNetwork(node!, envs: [:])
-        #expect(external.isExternal == true)
-        #expect(external.name == nil)
-    }
-
-    @Test("Test ExternalNetwork parsing - boolean false")
-    func parseExternalNetworkBoolFalse() throws {
-        let node = try Yams.compose(yaml: "false")
-        let external = try Network.ExternalNetwork(node!, envs: [:])
-        #expect(external.isExternal == false)
-        #expect(external.name == nil)
-    }
-
-    @Test("Test ExternalNetwork parsing - mapping with name")
-    func parseExternalNetworkMappingWithName() throws {
-        let node = try Yams.compose(yaml: "name: my_external_network")
-        let external = try Network.ExternalNetwork(node!, envs: [:])
-        #expect(external.isExternal == true)
-        #expect(external.name == "my_external_network")
-    }
-
-    @Test("Test ExternalNetwork parsing - empty mapping")
-    func parseExternalNetworkEmptyMapping() throws {
-        let node = try Yams.compose(yaml: "{}")
-        let external = try Network.ExternalNetwork(node!, envs: [:])
-        #expect(external.isExternal == true)
-        #expect(external.name == nil)
-    }
-
-    @Test("Test ExternalNetwork parsing - env var interpolation in name")
-    func parseExternalNetworkEnvInterpolation() throws {
-        let node = try Yams.compose(yaml: "name: ${PROJECT_NAME}_net")
-        let external = try Network.ExternalNetwork(
-            node!,
-            envs: ["PROJECT_NAME": "myapp"]
-        )
-        #expect(external.name == "myapp_net")
-    }
-
-    @Test(
-        "Test ExternalNetwork parsing - invalid node throws",
-        arguments: [
-            "[a, b, c]",
-            "just_a_string",
-        ]
-    )
-    func parseExternalNetworkInvalid(_ yaml: String) throws {
-        let node = try Yams.compose(yaml: yaml)
-        #expect(throws: (any Error).self) {
-            try Network.ExternalNetwork(node!, envs: [:])
-        }
-    }
-}
 
 @Suite("Network Parsing Tests")
 struct NetworkTestSuite {
@@ -620,22 +508,9 @@ struct NetworkTestSuite {
         let node = try Yams.compose(yaml: yaml)
         let network = try Network(node!, envs: [:])
 
-        #expect(network.external?.isExternal == true)
-        #expect(network.external?.name == nil)
+        #expect(network.external == true)
     }
 
-    @Test("Test Network parsing - external as object with name")
-    func parseNetworkExternalObjectWithName() throws {
-        let yaml = """
-        external:
-          name: my_external_network
-        """
-        let node = try Yams.compose(yaml: yaml)
-        let network = try Network(node!, envs: [:])
-
-        #expect(network.external?.isExternal == true)
-        #expect(network.external?.name == "my_external_network")
-    }
 
     @Test("Test Network parsing - ipv4 and ipv6 computed properties with dual stack")
     func parseNetworkDualStackIPAM() throws {
@@ -659,8 +534,6 @@ struct NetworkTestSuite {
         name: ${PROJECT_NAME}_net
         labels:
           owner: ${OWNER}
-        external:
-          name: ${PROJECT_NAME}_external
         """
         let node = try Yams.compose(yaml: yaml)
         let network = try Network(
@@ -675,7 +548,6 @@ struct NetworkTestSuite {
         #expect(network.driver == "bridge")
         #expect(network.name == "myapp_net")
         #expect(network.labels?["owner"] == "platform-team")
-        #expect(network.external?.name == "myapp_external")
     }
 
     @Test(

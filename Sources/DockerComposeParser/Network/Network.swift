@@ -16,11 +16,11 @@ public struct Network: Codable, Hashable {
     /// Network driver (e.g., 'bridge', 'overlay')
     public var driver: String?
     /// Driver-specific options
-    public var driver_opts: [String: String]?
+    /// optional value to handle reset
+    public var driver_opts: [String: String?]?
 
     /// Allow standalone containers to attach to this network
     public var enable_ipv4: Bool?
-
 
     public var ipv4: String? {
         guard let ipam else {
@@ -47,47 +47,13 @@ public struct Network: Codable, Hashable {
     /// By default, Compose provides external connectivity to networks. internal, when set to true, lets you create an externally isolated network.
     public var `internal`: Bool?
     /// Labels for the network
-    ///
-    public var labels: [String: String]?
+    /// optional value to handle reset
+    public var labels: [String: String?]?
 
     /// Explicit name for the network
     public var name: String?
-    
+
     public var tags: [String: ComposeTag?] = [:]
-
-
-    /// Custom initializer to handle `external: true` (boolean) or `external: { name: "my_net" }` (object).
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        driver = try container.decodeIfPresent(String.self, forKey: .driver)
-        driver_opts = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .driver_opts
-        )
-        attachable = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .attachable
-        )
-        enable_ipv4 = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .enable_ipv4
-        )
-        enable_ipv6 = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .enable_ipv6
-        )
-        `internal` = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .`internal`
-        )  // Use `internal` here
-        labels = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .labels
-        )
-        name = try container.decodeIfPresent(String.self, forKey: .name)
-        ipam = try container.decodeIfPresent(IPAM.self, forKey: .ipam)
-        external = try container.decodeIfPresent(Bool.self, forKey: .external)
-    }
 
     public init(
         driver: String?,
@@ -131,28 +97,55 @@ extension Network: NodeConvertible {
         self.driver = try? mapping.value(for: CodingKeys.driver).string(
             envs: envs
         )
+        self.tags[CodingKeys.driver.stringValue] = mapping.composeTag(
+            for: CodingKeys.driver
+        )
 
         self.driver_opts = try? mapping.value(for: CodingKeys.driver_opts)
             .dictionary(envs: envs)
+        self.tags[CodingKeys.driver_opts.stringValue] = mapping.composeTag(
+            for: CodingKeys.driver_opts
+        )
 
         self.attachable = try? mapping.value(for: CodingKeys.attachable).bool
+        self.tags[CodingKeys.attachable.stringValue] = mapping.composeTag(
+            for: CodingKeys.attachable
+        )
 
         self.enable_ipv4 = try? mapping.value(for: CodingKeys.enable_ipv4).bool
+        self.tags[CodingKeys.enable_ipv4.stringValue] = mapping.composeTag(
+            for: CodingKeys.enable_ipv4
+        )
 
         self.enable_ipv6 = try? mapping.value(for: CodingKeys.enable_ipv6).bool
+        self.tags[CodingKeys.enable_ipv6.stringValue] = mapping.composeTag(
+            for: CodingKeys.enable_ipv6
+        )
 
         self.`internal` = try? mapping.value(for: CodingKeys.`internal`).bool
+        self.tags[CodingKeys.internal.stringValue] = mapping.composeTag(
+            for: CodingKeys.internal
+        )
 
         self.labels = try? mapping.value(for: CodingKeys.labels)
             .dictionary(envs: envs)
+        self.tags[CodingKeys.labels.stringValue] = mapping.composeTag(
+            for: CodingKeys.labels
+        )
 
         self.name = try? mapping.value(for: CodingKeys.name).string(envs: envs)
+        self.tags[CodingKeys.name.stringValue] = mapping.composeTag(
+            for: CodingKeys.name
+        )
 
         self.ipam = try? IPAM(mapping.value(for: CodingKeys.ipam), envs: envs)
+        self.tags[CodingKeys.ipam.stringValue] = mapping.composeTag(
+            for: CodingKeys.ipam
+        )
 
         self.external = try? mapping.value(for: CodingKeys.external).bool
-        self.tags[CodingKeys.external.stringValue] =
-            (try? mapping.value(for: CodingKeys.external))?.composeTag
-
+        self.tags[CodingKeys.external.stringValue] = mapping.composeTag(
+            for: CodingKeys.external
+        )
     }
 }

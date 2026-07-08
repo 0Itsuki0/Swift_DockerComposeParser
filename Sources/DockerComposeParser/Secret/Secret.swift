@@ -5,6 +5,8 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Yams
+
 /// Represents a top-level secret definition
 /// https://docs.docker.com/reference/compose-file/secrets/
 public struct Secret: Codable, Hashable {
@@ -12,26 +14,14 @@ public struct Secret: Codable, Hashable {
     public var file: String?
     /// Environment variable to populate with the secret content
     public var environment: String?
-    
-    public var tags: [String: ComposeTag?] = [:]
 
-    /// Custom initializer to handle `external: true` (boolean) or `external: { name: "my_sec" }` (object).
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        file = try container.decodeIfPresent(String.self, forKey: .file)
-        environment = try container.decodeIfPresent(
-            String.self,
-            forKey: .environment
-        )
-    }
+    public var tags: [String: ComposeTag?] = [:]
 
     public init(file: String?, environment: String?) {
         self.file = file
         self.environment = environment
     }
 }
-
-import Yams
 
 extension Secret: NodeConvertible {
 
@@ -47,6 +37,15 @@ extension Secret: NodeConvertible {
 
         // `try?` acts as decodeIfPresent
         self.file = try? mapping.value(for: CodingKeys.file).string(envs: envs)
-        self.environment = try? mapping.value(for: CodingKeys.environment).string(envs: envs)
+        self.tags[CodingKeys.file.stringValue] = mapping.composeTag(
+            for: CodingKeys.file
+        )
+
+        self.environment = try? mapping.value(for: CodingKeys.environment)
+            .string(envs: envs)
+        self.tags[CodingKeys.environment.stringValue] = mapping.composeTag(
+            for: CodingKeys.environment
+        )
+
     }
 }

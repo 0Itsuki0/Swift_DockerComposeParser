@@ -40,13 +40,6 @@ public struct Model: Codable, Hashable {
         self.context_size = context_size
         self.runtime_flags = runtime_flags
     }
-    
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.model = try container.decode(String.self, forKey: .model)
-        self.context_size = try container.decodeIfPresent(Int.self, forKey: .context_size)
-        self.runtime_flags = try container.decodeIfPresent([String].self, forKey: .runtime_flags)
-    }
 }
 
 import Yams
@@ -72,7 +65,12 @@ extension Model: NodeConvertible {
             )
         }
         self.model = model
+        self.tags[CodingKeys.model.stringValue] = mapping.composeTag(for: CodingKeys.model)
+
         self.context_size = try? mapping.value(for: CodingKeys.context_size).int(envs: envs)
+        self.tags[CodingKeys.context_size.stringValue] = mapping.composeTag(for: CodingKeys.context_size)
+
         self.runtime_flags = try? mapping.value(for: CodingKeys.runtime_flags).array(of: String.self , envs: envs)
+        self.tags[CodingKeys.runtime_flags.stringValue] = mapping.composeTag(for: CodingKeys.runtime_flags)
     }
 }

@@ -9,9 +9,13 @@ import Foundation
 import Playgrounds
 import Yams
 
-public protocol Mergable {
-    func merge(with update: Self) throws -> Self
-}
+// TODO: -
+// Memo: either resolve the context URL in init or right before merging,
+// because file URLs are relative to the compose file they are declared in
+//
+//public protocol Mergable {
+//    func merge(with update: Self) throws -> Self
+//}
 
 extension Encodable where Self: Decodable {
     public func deepMerge(with update: Self) throws -> Self {
@@ -73,8 +77,65 @@ extension Dictionary where Key == String, Value == Any {
         -> [String: Any]
     {
         var result = self
+        let tags = update["tags"] as? [String: ComposeTag?] ?? [:]
+        print("tags: ", tags)
 
         for (key, newValue) in update {
+            if key == "tags" {
+                continue
+            }
+
+            let tag: ComposeTag? = tags[key] ?? nil
+            if let tag {
+                switch tag {
+                case .override:
+                    result[key] = newValue
+                    
+                case .reset:
+                    if newValue is NSNull {
+                        let currentValue = result[key]
+                        switch currentValue {
+                        case is Bool:
+                            result[key] = false
+                        case is Int:
+                            result[key] = 0
+                        case is Double:
+                            result[key] = 0.0
+                        case is String:
+                            result[key] = ""
+                        case is Dictionary:
+                            result[key] = [:]
+                        case is Array<Any>:
+                            result[key] = []
+                        default:
+                            result[key] = nil
+                        }
+                    } else {
+                        // A valid value for attribute must be provided,
+                        // but will be ignored and target attribute will be set with type's default value or null.
+                        result[key] = newValue
+                        switch newValue {
+                        case is Bool:
+                            result[key] = false
+                        case is Int:
+                            result[key] = 0
+                        case is Double:
+                            result[key] = 0.0
+                        case is String:
+                            result[key] = ""
+                        case is Dictionary:
+                            result[key] = [:]
+                        case is Array<Any>:
+                            result[key] = []
+                        default:
+                            result[key] = nil
+                        }
+                    }
+                    
+                }
+                continue
+            }
+
             if newValue is NSNull { continue }
 
             // When merging Compose files that use the services attributes command, entrypoint and healthcheck: test, the value is overridden by the latest Compose file, and not appended.

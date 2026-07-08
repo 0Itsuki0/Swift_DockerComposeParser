@@ -6,6 +6,9 @@
 //
 
 import Foundation
+//
+import Playgrounds
+import Yams
 
 /// Represents a single service definition within the `services` section.
 /// https://docs.docker.com/reference/compose-file/services/
@@ -29,7 +32,8 @@ public struct Service: Codable, Hashable {
     public var volumes: [Volume]?
 
     /// Environment variables to set in the container
-    public var environment: [String: String]?
+    // optional value to handle reset
+    public var environment: [String: String?]?
 
     /// List of .env files to load environment variables from
     /// The env_file attribute is used to specify one or more files that contain environment variables to be passed to the **containers**.
@@ -45,7 +49,8 @@ public struct Service: Codable, Hashable {
     public var depends_on: [String]?
 
     /// Service dependency options keyed by dependency service name.
-    public var dependencyConditions: [String: Dependency]?
+    // optional value to handle reset
+    public var dependencyConditions: [String: Dependency?]?
 
     /// User or UID to run the container as
     public var user: String?
@@ -57,13 +62,12 @@ public struct Service: Codable, Hashable {
     /// Passed through as `--label key=value`; the `com.docker.compose.project` and
     /// `com.docker.compose.service` labels are additionally stamped by `ComposeUp`
     /// and take precedence over any user value for those keys.
-    public var labels: [String: String]?
+    // optional value to handle reset
+    public var labels: [String: String?]?
 
     /// List of networks the service will connect to
-    public var networks: [String]?
-
-    /// Service network options keyed by network name.
-    public var networkConfigurations: [String: Service.Network]?
+    /// optional value to handle reset
+    public var networks: [String: Service.Network?]?
 
     /// Container hostname
     public var hostname: String?
@@ -112,7 +116,8 @@ public struct Service: Codable, Hashable {
     public var profiles: [String]?
 
     /// Annotations applied to the container. Accepts either a map or a list of `key=value` strings.
-    public var annotations: [String: String]?
+    // optional value to handle reset
+    public var annotations: [String: String?]?
 
     /// When `false`, Compose does not collect this service's logs until explicitly requested. Defaults to `true`.
     public var attach: Bool?
@@ -228,13 +233,11 @@ public struct Service: Codable, Hashable {
     /// Total memory + swap limit, set as a byte-value string.
     public var memswap_limit: String?
 
-    /// AI models (declared in the top-level `models` element) this service is granted access to.
-    public var models: [String]?
-
     /// Per-model options keyed by model name, for models referenced via the long syntax.
-    public var modelConfigurations: [String: Service.Model]?
+    public var models: [String: Service.Model?]?
 
     /// Network mode for the container (e.g. `host`, `bridge`, `none`, `service:{name}`).
+    // TODO: - When set, the networks attribute is not allowed and Compose rejects any Compose file containing both attributes.
     public var network_mode: String?
 
     /// Disables the OOM killer for this container when `true`.
@@ -280,16 +283,19 @@ public struct Service: Codable, Hashable {
     public var stop_signal: String?
 
     /// Storage driver options for the container.
-    public var storage_opt: [String: String]?
+    // optional value to handle reset
+    public var storage_opt: [String: String?]?
 
     /// Kernel parameters to set in the container. Accepts either a map or a list of `key=value` strings.
-    public var sysctls: [String: String]?
+    // optional value to handle reset
+    public var sysctls: [String: String?]?
 
     /// Mount points to mount as `tmpfs` inside the container. Accepts a single value or a list.
     public var tmpfs: [String]?
 
     /// Ulimit overrides keyed by ulimit name (e.g. "nofile", "nproc").
-    public var ulimits: [String: Ulimit]?
+    // optional value to handle reset
+    public var ulimits: [String: Ulimit?]?
 
     /// When `true`, exposes the Docker/container engine API socket to this service.
     public var use_api_socket: Bool?
@@ -305,33 +311,32 @@ public struct Service: Codable, Hashable {
 
     /// Other services that depend on this service
     public var dependedBy: [String] = []
-    
-    public var tags: [String: ComposeTag?] = [:]
 
+    public var tags: [String: ComposeTag?] = [:]
 
     // Defines custom coding keys to map YAML keys to Swift properties
     // dependedBy not included
-    enum CodingKeys: String, CodingKey {
-        case image, build, deploy, restart, healthcheck, volumes, environment,
-            env_file, ports, command, depends_on, user,
-            container_name, labels, networks, hostname, entrypoint, privileged,
-            read_only, working_dir, configs, secrets, stdin_open, tty, platform,
-            mem_limit, extra_hosts, profiles,
-            annotations, attach, blkio_config, cpu_count, cpu_percent,
-            cpu_shares, cpu_period, cpu_quota, cpu_rt_runtime,
-            cpu_rt_period, cpus, cpuset, cap_add, cap_drop, cgroup,
-            cgroup_parent, credential_spec, develop,
-            device_cgroup_rules, devices, dns, dns_opt, dns_search, domainname,
-            expose, extends, external_links, gpus,
-            group_add, `init`, ipc, isolation, label_file, links, logging,
-            mac_address, mem_reservation, mem_swappiness,
-            memswap_limit, models, network_mode, oom_kill_disable,
-            oom_score_adj, pid, pids_limit, post_start, pre_stop,
-            provider, pull_policy, runtime, scale, security_opt, shm_size,
-            stop_grace_period, stop_signal, storage_opt,
-            sysctls, tmpfs, ulimits, use_api_socket, userns_mode, uts,
-            volumes_from
-    }
+    //    enum CodingKeys: String, CodingKey {
+    //        case image, build, deploy, restart, healthcheck, volumes, environment,
+    //            env_file, ports, command, depends_on, user,
+    //            container_name, labels, networks, hostname, entrypoint, privileged,
+    //            read_only, working_dir, configs, secrets, stdin_open, tty, platform,
+    //            mem_limit, extra_hosts, profiles,
+    //            annotations, attach, blkio_config, cpu_count, cpu_percent,
+    //            cpu_shares, cpu_period, cpu_quota, cpu_rt_runtime,
+    //            cpu_rt_period, cpus, cpuset, cap_add, cap_drop, cgroup,
+    //            cgroup_parent, credential_spec, develop,
+    //            device_cgroup_rules, devices, dns, dns_opt, dns_search, domainname,
+    //            expose, extends, external_links, gpus,
+    //            group_add, `init`, ipc, isolation, label_file, links, logging,
+    //            mac_address, mem_reservation, mem_swappiness,
+    //            memswap_limit, models, network_mode, oom_kill_disable,
+    //            oom_score_adj, pid, pids_limit, post_start, pre_stop,
+    //            provider, pull_policy, runtime, scale, security_opt, shm_size,
+    //            stop_grace_period, stop_signal, storage_opt,
+    //            sysctls, tmpfs, ulimits, use_api_socket, userns_mode, uts,
+    //            volumes_from
+    //    }
 
     /// Public memberwise initializer for testing
     public init(
@@ -350,8 +355,7 @@ public struct Service: Codable, Hashable {
         user: String? = nil,
         container_name: String? = nil,
         labels: [String: String]? = nil,
-        networks: [String]? = nil,
-        networkConfigurations: [String: Network]? = nil,
+        networks: [String: Network]? = nil,
         hostname: String? = nil,
         entrypoint: [String]? = nil,
         privileged: Bool? = nil,
@@ -404,8 +408,7 @@ public struct Service: Codable, Hashable {
         mem_reservation: String? = nil,
         mem_swappiness: Int? = nil,
         memswap_limit: String? = nil,
-        models: [String]? = nil,
-        modelConfigurations: [String: Model]? = nil,
+        models: [String: Model?]? = nil,
         network_mode: String? = nil,
         oom_kill_disable: Bool? = nil,
         oom_score_adj: Int? = nil,
@@ -447,7 +450,6 @@ public struct Service: Codable, Hashable {
         self.container_name = container_name
         self.labels = labels
         self.networks = networks
-        self.networkConfigurations = networkConfigurations
         self.hostname = hostname
         self.entrypoint = entrypoint
         self.privileged = privileged
@@ -501,7 +503,6 @@ public struct Service: Codable, Hashable {
         self.mem_swappiness = mem_swappiness
         self.memswap_limit = memswap_limit
         self.models = models
-        self.modelConfigurations = modelConfigurations
         self.network_mode = network_mode
         self.oom_kill_disable = oom_kill_disable
         self.oom_score_adj = oom_score_adj
@@ -528,490 +529,6 @@ public struct Service: Codable, Hashable {
         self.dependedBy = dependedBy
     }
 
-    /// Custom initializer to handle decoding and basic validation.
-    public init(from decoder: Decoder) throws {
-
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        image = try container.decodeIfPresent(String.self, forKey: .image)
-        build = try container.decodeIfPresent(Build.self, forKey: .build)
-        deploy = try container.decodeIfPresent(Deploy.self, forKey: .deploy)
-
-        restart = try container.decodeIfPresent(String.self, forKey: .restart)
-        healthcheck = try container.decodeIfPresent(
-            Healthcheck.self,
-            forKey: .healthcheck
-        )
-        volumes = try container.decodeIfPresent([Volume].self, forKey: .volumes)
-
-        // `environment:` accepts both forms per the Compose spec:
-        //   environment:                          environment:
-        //     KEY: value                            - KEY=value
-        //     OTHER: value          equivalent       - OTHER=value
-        //                                            - INHERIT_FROM_HOST
-        // Try the map form first; fall back to list form.
-        if let asMap = try? container.decodeIfPresent(
-            [String: String].self,
-            forKey: .environment
-        ) {
-            environment = asMap
-        } else if let asList = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .environment
-        ) {
-            environment = Service.parseEnvironmentList(asList)
-        } else {
-            environment = nil
-        }
-
-        if let entries = try? container.decodeIfPresent(
-            [EnvFileEntry].self,
-            forKey: .env_file
-        ) {
-            env_file = entries
-        } else if let single = try? container.decodeIfPresent(
-            String.self,
-            forKey: .env_file
-        ) {
-            env_file = [.init(path: single, required: true)]
-        } else {
-            env_file = nil
-        }
-
-        ports = try container.decodeIfPresent([Service.Port].self, forKey: .ports)
-
-        // Decode 'command' which can be either a single string or an array of strings.
-        if let cmdArray = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .command
-        ) {
-            command = cmdArray
-        } else if let cmdString = try? container.decodeIfPresent(
-            String.self,
-            forKey: .command
-        ) {
-            command = [cmdString]
-        } else {
-            command = nil
-        }
-
-        if let dependsOnString = try? container.decodeIfPresent(
-            String.self,
-            forKey: .depends_on
-        ) {
-            depends_on = [dependsOnString]
-            dependencyConditions = [dependsOnString: Dependency()]
-        } else if let dependsOnArray = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .depends_on
-        ) {
-            depends_on = dependsOnArray
-            dependencyConditions = Dictionary(
-                uniqueKeysWithValues: dependsOnArray.map {
-                    ($0, Dependency())
-                }
-            )
-        } else if let dependsOnMap = try? container.decodeIfPresent(
-            [String: Dependency?].self,
-            forKey: .depends_on
-        ) {
-            let normalized = dependsOnMap.mapValues {
-                $0 ?? Dependency()
-            }
-            depends_on = normalized.keys.sorted()
-            dependencyConditions = normalized
-        } else {
-            depends_on = nil
-            dependencyConditions = nil
-        }
-        user = try container.decodeIfPresent(String.self, forKey: .user)
-
-        container_name = try container.decodeIfPresent(
-            String.self,
-            forKey: .container_name
-        )
-        labels = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .labels
-        )
-        if let networkArray = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .networks
-        ) {
-            networks = networkArray
-            networkConfigurations = Dictionary(
-                uniqueKeysWithValues: networkArray.map {
-                    ($0, Network())
-                }
-            )
-        } else if let networkMap = try? container.decodeIfPresent(
-            [String: Network?].self,
-            forKey: .networks
-        ) {
-            let normalized = networkMap.mapValues { $0 ?? Network() }
-            networks = normalized.keys.sorted()
-            networkConfigurations = normalized
-        } else {
-            networks = nil
-            networkConfigurations = nil
-        }
-        hostname = try container.decodeIfPresent(String.self, forKey: .hostname)
-
-        // Decode 'entrypoint' which can be either a single string or an array of strings.
-        if let entrypointArray = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .entrypoint
-        ) {
-            entrypoint = entrypointArray
-        } else if let entrypointString = try? container.decodeIfPresent(
-            String.self,
-            forKey: .entrypoint
-        ) {
-            entrypoint = [entrypointString]
-        } else {
-            entrypoint = nil
-        }
-
-        privileged = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .privileged
-        )
-        read_only = try container.decodeIfPresent(Bool.self, forKey: .read_only)
-        working_dir = try container.decodeIfPresent(
-            String.self,
-            forKey: .working_dir
-        )
-        configs = try container.decodeIfPresent(
-            [Config].self,
-            forKey: .configs
-        )
-        secrets = try container.decodeIfPresent(
-            [Secret].self,
-            forKey: .secrets
-        )
-        stdin_open = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .stdin_open
-        )
-        tty = try container.decodeIfPresent(Bool.self, forKey: .tty)
-        platform = try container.decodeIfPresent(String.self, forKey: .platform)
-        if let s = try? container.decodeIfPresent(
-            String.self,
-            forKey: .mem_limit
-        ) {
-            mem_limit = s
-        } else if let i = try? container.decodeIfPresent(
-            Int.self,
-            forKey: .mem_limit
-        ) {
-            mem_limit = "\(i)"
-        } else {
-            mem_limit = nil
-        }
-
-        // `extra_hosts` accepts two forms per the Compose spec:
-        //   extra_hosts:               extra_hosts:
-        //     - "hostname:IP"    or      hostname: IP
-        //     - "other:host-gateway"
-        // The list form is most common; the map form is normalised to list form here.
-        if let list = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .extra_hosts
-        ) {
-            extra_hosts = list
-        } else if let map = try? container.decodeIfPresent(
-            [String: String].self,
-            forKey: .extra_hosts
-        ) {
-            extra_hosts = map.map { "\($0.key):\($0.value)" }
-        } else {
-            extra_hosts = nil
-        }
-
-        // `profiles` is a plain list of strings per the Compose spec (no shorthand
-        // single-string form).
-        profiles = try container.decodeIfPresent(
-            [String].self,
-            forKey: .profiles
-        )
-
-        // `annotations` accepts either a map or a list of `key=value` strings, same as `labels`.
-        if let asMap = try? container.decodeIfPresent(
-            [String: String].self,
-            forKey: .annotations
-        ) {
-            annotations = asMap
-        } else if let asList = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .annotations
-        ) {
-            annotations = Service.parseKeyValueList(asList)
-        } else {
-            annotations = nil
-        }
-
-        attach = try container.decodeIfPresent(Bool.self, forKey: .attach)
-        blkio_config = try container.decodeIfPresent(
-            BlkioConfig.self,
-            forKey: .blkio_config
-        )
-        cpu_count = try container.decodeIfPresent(Int.self, forKey: .cpu_count)
-        cpu_percent = try container.decodeIfPresent(
-            Double.self,
-            forKey: .cpu_percent
-        )
-        cpu_shares = try container.decodeIfPresent(
-            Int.self,
-            forKey: .cpu_shares
-        )
-        cpu_period = try Service.decodeStringOrNumber(
-            container,
-            forKey: .cpu_period
-        )
-        cpu_quota = try Service.decodeStringOrNumber(
-            container,
-            forKey: .cpu_quota
-        )
-        cpu_rt_runtime = try Service.decodeStringOrNumber(
-            container,
-            forKey: .cpu_rt_runtime
-        )
-        cpu_rt_period = try Service.decodeStringOrNumber(
-            container,
-            forKey: .cpu_rt_period
-        )
-        if let d = try? container.decodeIfPresent(Double.self, forKey: .cpus) {
-            cpus = d
-        } else if let s = try? container.decodeIfPresent(
-            String.self,
-            forKey: .cpus
-        ) {
-            cpus = Double(s)
-        } else {
-            cpus = nil
-        }
-        cpuset = try container.decodeIfPresent(String.self, forKey: .cpuset)
-        cap_add = try container.decodeIfPresent([String].self, forKey: .cap_add)
-        cap_drop = try container.decodeIfPresent(
-            [String].self,
-            forKey: .cap_drop
-        )
-        cgroup = try container.decodeIfPresent(String.self, forKey: .cgroup)
-        cgroup_parent = try container.decodeIfPresent(
-            String.self,
-            forKey: .cgroup_parent
-        )
-        credential_spec = try container.decodeIfPresent(
-            CredentialSpec.self,
-            forKey: .credential_spec
-        )
-        develop = try container.decodeIfPresent(Develop.self, forKey: .develop)
-        device_cgroup_rules = try container.decodeIfPresent(
-            [String].self,
-            forKey: .device_cgroup_rules
-        )
-        devices = try container.decodeIfPresent([String].self, forKey: .devices)
-        dns = try Service.decodeStringOrList(container, forKey: .dns)
-        dns_opt = try container.decodeIfPresent([String].self, forKey: .dns_opt)
-        dns_search = try Service.decodeStringOrList(
-            container,
-            forKey: .dns_search
-        )
-        domainname = try container.decodeIfPresent(
-            String.self,
-            forKey: .domainname
-        )
-
-        // `expose` entries may be written as bare port numbers or as quoted strings.
-        if let asStrings = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .expose
-        ) {
-            expose = asStrings
-        } else if let asInts = try? container.decodeIfPresent(
-            [Int].self,
-            forKey: .expose
-        ) {
-            expose = asInts.map { "\($0)" }
-        } else {
-            expose = nil
-        }
-
-        extends = try container.decodeIfPresent(
-            ServiceExtends.self,
-            forKey: .extends
-        )
-        external_links = try container.decodeIfPresent(
-            [String].self,
-            forKey: .external_links
-        )
-        gpus = try container.decodeIfPresent(GPU.self, forKey: .gpus)
-        group_add = try container.decodeIfPresent(
-            [String].self,
-            forKey: .group_add
-        )
-        `init` = try container.decodeIfPresent(Bool.self, forKey: .`init`)
-        ipc = try container.decodeIfPresent(String.self, forKey: .ipc)
-        isolation = try container.decodeIfPresent(
-            String.self,
-            forKey: .isolation
-        )
-        label_file = try Service.decodeStringOrList(
-            container,
-            forKey: .label_file
-        )
-        links = try container.decodeIfPresent([String].self, forKey: .links)
-        logging = try container.decodeIfPresent(
-            Logging.self,
-            forKey: .logging
-        )
-        mac_address = try container.decodeIfPresent(
-            String.self,
-            forKey: .mac_address
-        )
-        mem_reservation = try container.decodeIfPresent(
-            String.self,
-            forKey: .mem_reservation
-        )
-        mem_swappiness = try container.decodeIfPresent(
-            Int.self,
-            forKey: .mem_swappiness
-        )
-        if let s = try? container.decodeIfPresent(
-            String.self,
-            forKey: .memswap_limit
-        ) {
-            memswap_limit = s
-        } else if let i = try? container.decodeIfPresent(
-            Int.self,
-            forKey: .memswap_limit
-        ) {
-            memswap_limit = "\(i)"
-        } else {
-            memswap_limit = nil
-        }
-
-        // `models` accepts a list of model names (short syntax) or a map of model
-        // name to per-service options (long syntax), mirroring `networks`/`depends_on`.
-        if let modelArray = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .models
-        ) {
-            models = modelArray
-            modelConfigurations = Dictionary(
-                uniqueKeysWithValues: modelArray.map { ($0, Model()) }
-            )
-        } else if let modelMap = try? container.decodeIfPresent(
-            [String: Model?].self,
-            forKey: .models
-        ) {
-            let normalized = modelMap.mapValues { $0 ?? Model() }
-            models = normalized.keys.sorted()
-            modelConfigurations = normalized
-        } else {
-            models = nil
-            modelConfigurations = nil
-        }
-
-        network_mode = try container.decodeIfPresent(
-            String.self,
-            forKey: .network_mode
-        )
-        oom_kill_disable = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .oom_kill_disable
-        )
-        oom_score_adj = try container.decodeIfPresent(
-            Int.self,
-            forKey: .oom_score_adj
-        )
-        pid = try container.decodeIfPresent(String.self, forKey: .pid)
-        pids_limit = try container.decodeIfPresent(
-            Int.self,
-            forKey: .pids_limit
-        )
-        post_start = try container.decodeIfPresent(
-            [Hook].self,
-            forKey: .post_start
-        )
-        pre_stop = try container.decodeIfPresent(
-            [Hook].self,
-            forKey: .pre_stop
-        )
-        provider = try container.decodeIfPresent(
-            Provider.self,
-            forKey: .provider
-        )
-        pull_policy = try container.decodeIfPresent(
-            String.self,
-            forKey: .pull_policy
-        )
-        runtime = try container.decodeIfPresent(String.self, forKey: .runtime)
-        scale = try container.decodeIfPresent(Int.self, forKey: .scale)
-        security_opt = try container.decodeIfPresent(
-            [String].self,
-            forKey: .security_opt
-        )
-        if let s = try? container.decodeIfPresent(
-            String.self,
-            forKey: .shm_size
-        ) {
-            shm_size = s
-        } else if let i = try? container.decodeIfPresent(
-            Int.self,
-            forKey: .shm_size
-        ) {
-            shm_size = "\(i)"
-        } else {
-            shm_size = nil
-        }
-        stop_grace_period = try container.decodeIfPresent(
-            String.self,
-            forKey: .stop_grace_period
-        )
-        stop_signal = try container.decodeIfPresent(
-            String.self,
-            forKey: .stop_signal
-        )
-        storage_opt = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .storage_opt
-        )
-
-        // `sysctls` accepts either a map or a list of `key=value` strings, same as `environment`.
-        if let asMap = try? container.decodeIfPresent(
-            [String: String].self,
-            forKey: .sysctls
-        ) {
-            sysctls = asMap
-        } else if let asList = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .sysctls
-        ) {
-            sysctls = Service.parseKeyValueList(asList)
-        } else {
-            sysctls = nil
-        }
-
-        tmpfs = try Service.decodeStringOrList(container, forKey: .tmpfs)
-        ulimits = try container.decodeIfPresent(
-            [String: Ulimit].self,
-            forKey: .ulimits
-        )
-        use_api_socket = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .use_api_socket
-        )
-        userns_mode = try container.decodeIfPresent(
-            String.self,
-            forKey: .userns_mode
-        )
-        uts = try container.decodeIfPresent(String.self, forKey: .uts)
-        volumes_from = try container.decodeIfPresent(
-            [String].self,
-            forKey: .volumes_from
-        )
-    }
-
     /// True when this service should be included by default given the currently
     /// active profiles. Per the Compose spec: a service with no `profiles` is
     /// always eligible; a service with `profiles` is eligible only when at least
@@ -1022,93 +539,6 @@ public struct Service: Codable, Hashable {
         guard let profiles, !profiles.isEmpty else { return true }
         return !Set(profiles).isDisjoint(with: activeProfiles)
     }
-
-    /// Translates the list-form of `environment:` into the same `[String: String]`
-    /// shape produced by the map form. Handles two cases:
-    ///   - `KEY=value`  → `KEY: value`  (split on first `=`; later `=` chars
-    ///                                   stay in the value, so DSN-style values
-    ///                                   like `postgres://u:p@h/db?sslmode=req`
-    ///                                   round-trip correctly)
-    ///   - `KEY`        → `KEY: <process env value, or "">`  (Compose's
-    ///                                   "inherit from host" shorthand; if
-    ///                                   the host doesn't define it, falls
-    ///                                   back to an empty string)
-    static func parseEnvironmentList(_ entries: [String]) -> [String: String] {
-        var dict: [String: String] = [:]
-        for entry in entries {
-            if let eqIdx = entry.firstIndex(of: "=") {
-                let key = String(entry[..<eqIdx])
-                let value = String(entry[entry.index(after: eqIdx)...])
-                dict[key] = value
-            } else {
-                dict[entry] = ProcessInfo.processInfo.environment[entry] ?? ""
-            }
-        }
-        return dict
-    }
-
-    /// Translates a plain `KEY=value` list (as used by `annotations`, `labels`, and
-    /// `sysctls`) into a `[String: String]` map. Unlike `parseEnvironmentList`, a
-    /// bare `KEY` with no `=` is stored with an empty value rather than falling
-    /// back to the host's environment, since these keys have no "inherit from host" meaning.
-    static func parseKeyValueList(_ entries: [String]) -> [String: String] {
-        var dict: [String: String] = [:]
-        for entry in entries {
-            if let eqIdx = entry.firstIndex(of: "=") {
-                let key = String(entry[..<eqIdx])
-                let value = String(entry[entry.index(after: eqIdx)...])
-                dict[key] = value
-            } else {
-                dict[entry] = ""
-            }
-        }
-        return dict
-    }
-
-    /// Decodes an attribute that the Compose spec allows to be either a single
-    /// string or a list of strings (e.g. `dns`, `dns_search`, `label_file`, `tmpfs`),
-    /// always returning it normalized to a list.
-    static func decodeStringOrList(
-        _ container: KeyedDecodingContainer<CodingKeys>,
-        forKey key: CodingKeys
-    ) throws -> [String]? {
-        if let asList = try? container.decodeIfPresent(
-            [String].self,
-            forKey: key
-        ) {
-            return asList
-        } else if let asString = try? container.decodeIfPresent(
-            String.self,
-            forKey: key
-        ) {
-            return [asString]
-        } else {
-            return nil
-        }
-    }
-
-    /// Decodes an attribute that the Compose spec allows to be either a duration
-    /// string (e.g. `"1400us"`) or a bare integer (e.g. microseconds), always
-    /// returning it normalized to a string.
-    static func decodeStringOrNumber(
-        _ container: KeyedDecodingContainer<CodingKeys>,
-        forKey key: CodingKeys
-    ) throws -> String? {
-        if let asString = try? container.decodeIfPresent(
-            String.self,
-            forKey: key
-        ) {
-            return asString
-        } else if let asInt = try? container.decodeIfPresent(
-            Int.self,
-            forKey: key
-        ) {
-            return "\(asInt)"
-        } else {
-            return nil
-        }
-    }
-
 }
 
 extension Service {
@@ -1145,9 +575,6 @@ extension Service {
     }
 }
 
-//
-import Playgrounds
-import Yams
 //
 //
 //#Playground {
@@ -1196,41 +623,40 @@ import Yams
 //    }
 //}
 
+extension Service {
+    //    ServiceExtends
 
-public extension Service {
-//    ServiceExtends
-    
     // needs to be processed in order of defined within the compose file.
-    func resolveExtends(composeDirectory: URL, selfName: String, servicesBeforeSelf: [Service]) throws -> Service {
+    public func resolveExtends(
+        composeDirectory: URL,
+        selfName: String,
+        servicesBeforeSelf: [Service]
+    ) throws -> Service {
         var service = self
         guard let extend = self.extends else {
             return service
         }
-        
+
         // extending from anther file
         if let file = extend.file {
-//            let fullURL = URL(filePath: file, relativeTo: composeDirectory)
-//            let compose = try DockerCompose(url: fullURL)
-//            guard let baseServiceIndex = compose.services.firstIndex(where: {$0.key == selfName}) else {
-//                throw ComposeError.invalidExtends("Service \(selfName) not found in \(file)")
-//            }
-//
-//            let baseService = compose.services[baseServiceIndex]
-            
-//            let resolved = baseService.value.resolveExtends(composeDirectory: composeDirectory, selfName: selfName, servicesBeforeSelf: <#T##[Service]#>)
-//            let merged = baseService.value.deepMerge(with: self)
+            //            let fullURL = URL(filePath: file, relativeTo: composeDirectory)
+            //            let compose = try DockerCompose(url: fullURL)
+            //            guard let baseServiceIndex = compose.services.firstIndex(where: {$0.key == selfName}) else {
+            //                throw ComposeError.invalidExtends("Service \(selfName) not found in \(file)")
+            //            }
+            //
+            //            let baseService = compose.services[baseServiceIndex]
+
+            //            let resolved = baseService.value.resolveExtends(composeDirectory: composeDirectory, selfName: selfName, servicesBeforeSelf: <#T##[Service]#>)
+            //            let merged = baseService.value.deepMerge(with: self)
         }
-        
+
         // extending from the same file
-//        self.services.ser
-        
-        
+        //        self.services.ser
+
         return service
     }
 }
-
-
-
 
 //
 //extension Array where Element == String {
@@ -1250,9 +676,8 @@ public extension Service {
 //    }
 //}
 
-
 extension Service {
-    
+
     /// Returns the services in topological order based on `depends_on` relationships.
     public static func topoSortConfiguredServices(
         _ services: [(serviceName: String, service: Service)]
@@ -1356,7 +781,6 @@ extension Service {
     }
 }
 
-import Yams
 extension Service.EnvFileEntry: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
@@ -1370,26 +794,34 @@ extension Service.EnvFileEntry: NodeConvertible {
             throw DecodingError.dataCorrupted(
                 .init(
                     codingPath: [],
-                    debugDescription: "Invalid yaml data. Expected a string or a mapping."
+                    debugDescription:
+                        "Invalid yaml data. Expected a string or a mapping."
                 )
             )
         }
 
-        guard let path = try mapping.value(for: CodingKeys.path).string(envs: envs) else {
+        guard
+            let path = try mapping.value(for: CodingKeys.path).string(
+                envs: envs
+            )
+        else {
             throw DecodingError.dataCorrupted(
                 .init(
                     codingPath: [CodingKeys.path],
-                    debugDescription: "EnvFileEntry entry must have a 'path' specified."
+                    debugDescription:
+                        "EnvFileEntry entry must have a 'path' specified."
                 )
             )
         }
         self.path = path
 
-        guard let required = try mapping.value(for: CodingKeys.required).bool else {
+        guard let required = try mapping.value(for: CodingKeys.required).bool
+        else {
             throw DecodingError.dataCorrupted(
                 .init(
                     codingPath: [CodingKeys.required],
-                    debugDescription: "EnvFileEntry entry must have a 'required' specified."
+                    debugDescription:
+                        "EnvFileEntry entry must have a 'required' specified."
                 )
             )
         }
@@ -1409,11 +841,21 @@ extension Service: NodeConvertible {
             )
         }
 
-        self.image = try? mapping.value(for: CodingKeys.image).string(envs: envs)
-        self.build = try? Service.Build(mapping.value(for: CodingKeys.build), envs: envs)
-        self.deploy = try? Service.Deploy(mapping.value(for: CodingKeys.deploy), envs: envs)
+        self.image = try? mapping.value(for: CodingKeys.image).string(
+            envs: envs
+        )
+        self.build = try? Service.Build(
+            mapping.value(for: CodingKeys.build),
+            envs: envs
+        )
+        self.deploy = try? Service.Deploy(
+            mapping.value(for: CodingKeys.deploy),
+            envs: envs
+        )
 
-        self.restart = try? mapping.value(for: CodingKeys.restart).string(envs: envs)
+        self.restart = try? mapping.value(for: CodingKeys.restart).string(
+            envs: envs
+        )
 
         self.healthcheck = try? Service.Healthcheck(
             mapping.value(for: CodingKeys.healthcheck),
@@ -1424,12 +866,14 @@ extension Service: NodeConvertible {
             .array(of: Service.Volume.self, envs: envs)
 
         // `environment:` accepts a `KEY: VALUE` map or a `KEY=VALUE` list.
-        if let asMap = try? mapping.value(for: CodingKeys.environment).dictionary(envs: envs) {
+        if let asMap = try? mapping.value(for: CodingKeys.environment)
+            .dictionary(envs: envs)
+        {
             self.environment = asMap
         } else if let asList = try? mapping.value(for: CodingKeys.environment)
             .array(of: String.self, envs: envs), !asList.isEmpty
         {
-            self.environment = Service.parseEnvironmentList(asList)
+            self.environment = Utility.parseKeyValueList(asList, isEnv: true)
         } else {
             self.environment = nil
         }
@@ -1471,7 +915,10 @@ extension Service: NodeConvertible {
         if let dependsOnString = try? dependsOnNode?.string(envs: envs) {
             self.depends_on = [dependsOnString]
             self.dependencyConditions = [dependsOnString: Dependency()]
-        } else if let dependsOnArray = try? dependsOnNode?.array(of: String.self, envs: envs),
+        } else if let dependsOnArray = try? dependsOnNode?.array(
+            of: String.self,
+            envs: envs
+        ),
             !dependsOnArray.isEmpty
         {
             self.depends_on = dependsOnArray
@@ -1485,7 +932,10 @@ extension Service: NodeConvertible {
                 if valueNode.null != nil {
                     normalized[keyString] = Dependency()
                 } else {
-                    normalized[keyString] = try? Dependency(valueNode, envs: envs)
+                    normalized[keyString] = try? Dependency(
+                        valueNode,
+                        envs: envs
+                    )
                     if normalized[keyString] == nil {
                         normalized[keyString] = Dependency()
                     }
@@ -1501,17 +951,34 @@ extension Service: NodeConvertible {
         self.user = try? mapping.value(for: CodingKeys.user).string(envs: envs)
         self.container_name = try? mapping.value(for: CodingKeys.container_name)
             .string(envs: envs)
-        self.labels = try? mapping.value(for: CodingKeys.labels).dictionary(envs: envs)
+
+        // labels:
+        // com.example.description: "Accounting webapp"
+        // com.example.department: "Finance"
+        // com.example.label-with-empty-value: ""
+        // or
+        // labels:
+        // - "com.example.description=Accounting webapp"
+        // - "com.example.department=Finance"
+        // - "com.example.label-with-empty-value"
+        self.labels = try? mapping.value(for: CodingKeys.labels).dictionary(
+            envs: envs,
+            isEnv: false
+        )
 
         // `networks` accepts a list of network names, or a map of network name ->
         // Network options (possibly null).
         let networksNode = try? mapping.value(for: CodingKeys.networks)
-        if let networkArray = try? networksNode?.array(of: String.self, envs: envs),
+        if let networkArray = try? networksNode?.array(
+            of: String.self,
+            envs: envs
+        ),
             !networkArray.isEmpty
         {
-            self.networks = networkArray
-            self.networkConfigurations = Dictionary(
-                uniqueKeysWithValues: networkArray.map { ($0, Service.Network()) }
+            self.networks = Dictionary(
+                uniqueKeysWithValues: networkArray.map {
+                    ($0, Service.Network())
+                }
             )
         } else if let networkMapping = networksNode?.mapping {
             var normalized: [String: Service.Network] = [:]
@@ -1520,29 +987,33 @@ extension Service: NodeConvertible {
                 if valueNode.null != nil {
                     normalized[keyString] = Service.Network()
                 } else {
-                    normalized[keyString] = try? Service.Network(valueNode, envs: envs)
+                    normalized[keyString] = try? Service.Network(
+                        valueNode,
+                        envs: envs
+                    )
                     if normalized[keyString] == nil {
                         normalized[keyString] = Service.Network()
                     }
                 }
             }
-            self.networks = normalized.keys.sorted()
-            self.networkConfigurations = normalized
+            self.networks = normalized
         } else {
             self.networks = nil
-            self.networkConfigurations = nil
         }
 
-        self.hostname = try? mapping.value(for: CodingKeys.hostname).string(envs: envs)
+        self.hostname = try? mapping.value(for: CodingKeys.hostname).string(
+            envs: envs
+        )
 
         // `entrypoint` accepts either a single string or an array of strings.
         if let entrypointArray = try? mapping.value(for: CodingKeys.entrypoint)
             .array(of: String.self, envs: envs), !entrypointArray.isEmpty
         {
             self.entrypoint = entrypointArray
-        } else if let entrypointString = try? mapping.value(for: CodingKeys.entrypoint)
-            .string(envs: envs)
-        {
+        } else if let entrypointString = try? mapping.value(
+            for: CodingKeys.entrypoint
+        )
+        .string(envs: envs) {
             self.entrypoint = [entrypointString]
         } else {
             self.entrypoint = nil
@@ -1550,8 +1021,11 @@ extension Service: NodeConvertible {
 
         self.privileged = try? mapping.value(for: CodingKeys.privileged).bool
         self.read_only = try? mapping.value(for: CodingKeys.read_only).bool
-        self.working_dir = try? mapping.value(for: CodingKeys.working_dir).string(envs: envs)
-        self.platform = try? mapping.value(for: CodingKeys.platform).string(envs: envs)
+        self.working_dir = try? mapping.value(for: CodingKeys.working_dir)
+            .string(envs: envs)
+        self.platform = try? mapping.value(for: CodingKeys.platform).string(
+            envs: envs
+        )
 
         self.configs = try? mapping.value(for: CodingKeys.configs)
             .array(of: Service.Config.self, envs: envs)
@@ -1562,12 +1036,16 @@ extension Service: NodeConvertible {
         self.tty = try? mapping.value(for: CodingKeys.tty).bool
 
         // `mem_limit` accepts a string or a bare int.
-        self.mem_limit = try? mapping.value(for: CodingKeys.mem_limit).string(envs: envs)
+        self.mem_limit = try? mapping.value(for: CodingKeys.mem_limit).string(
+            envs: envs
+        )
 
         // `extra_hosts` accepts a list of "hostname:IP" strings or a
         // {hostname: IP} map, normalized to list form.
         let extraHostsNode = try? mapping.value(for: CodingKeys.extra_hosts)
-        if let list = try? extraHostsNode?.array(of: String.self, envs: envs), !list.isEmpty {
+        if let list = try? extraHostsNode?.array(of: String.self, envs: envs),
+            !list.isEmpty
+        {
             self.extra_hosts = list
         } else if let map = try? extraHostsNode?.dictionary(envs: envs) {
             self.extra_hosts = map.map { "\($0.key):\($0.value)" }
@@ -1579,12 +1057,14 @@ extension Service: NodeConvertible {
             .array(of: String.self, envs: envs)
 
         // `annotations` accepts a map or a `key=value` list.
-        if let asMap = try? mapping.value(for: CodingKeys.annotations).dictionary(envs: envs) {
+        if let asMap = try? mapping.value(for: CodingKeys.annotations)
+            .dictionary(envs: envs)
+        {
             self.annotations = asMap
         } else if let asList = try? mapping.value(for: CodingKeys.annotations)
             .array(of: String.self, envs: envs), !asList.isEmpty
         {
-            self.annotations = Service.parseKeyValueList(asList)
+            self.annotations = Utility.parseKeyValueList(asList, isEnv: false)
         } else {
             self.annotations = nil
         }
@@ -1596,12 +1076,20 @@ extension Service: NodeConvertible {
             envs: envs
         )
 
-        self.cpu_count = try? mapping.value(for: CodingKeys.cpu_count).int(envs: envs)
+        self.cpu_count = try? mapping.value(for: CodingKeys.cpu_count).int(
+            envs: envs
+        )
         self.cpu_percent = try? mapping.value(for: CodingKeys.cpu_percent).float
-        self.cpu_shares = try? mapping.value(for: CodingKeys.cpu_shares).int(envs: envs)
+        self.cpu_shares = try? mapping.value(for: CodingKeys.cpu_shares).int(
+            envs: envs
+        )
 
-        self.cpu_period = try? mapping.value(for: CodingKeys.cpu_period).string(envs: envs)
-        self.cpu_quota = try? mapping.value(for: CodingKeys.cpu_quota).string(envs: envs)
+        self.cpu_period = try? mapping.value(for: CodingKeys.cpu_period).string(
+            envs: envs
+        )
+        self.cpu_quota = try? mapping.value(for: CodingKeys.cpu_quota).string(
+            envs: envs
+        )
         self.cpu_rt_runtime = try? mapping.value(for: CodingKeys.cpu_rt_runtime)
             .string(envs: envs)
         self.cpu_rt_period = try? mapping.value(for: CodingKeys.cpu_rt_period)
@@ -1610,20 +1098,26 @@ extension Service: NodeConvertible {
         // `cpus` accepts a Double or a numeric string.
         if let d = try? mapping.value(for: CodingKeys.cpus).float {
             self.cpus = d
-        } else if let s = try? mapping.value(for: CodingKeys.cpus).string(envs: envs) {
+        } else if let s = try? mapping.value(for: CodingKeys.cpus).string(
+            envs: envs
+        ) {
             self.cpus = Double(s)
         } else {
             self.cpus = nil
         }
 
-        self.cpuset = try? mapping.value(for: CodingKeys.cpuset).string(envs: envs)
+        self.cpuset = try? mapping.value(for: CodingKeys.cpuset).string(
+            envs: envs
+        )
 
         self.cap_add = try? mapping.value(for: CodingKeys.cap_add)
             .array(of: String.self, envs: envs)
         self.cap_drop = try? mapping.value(for: CodingKeys.cap_drop)
             .array(of: String.self, envs: envs)
 
-        self.cgroup = try? mapping.value(for: CodingKeys.cgroup).string(envs: envs)
+        self.cgroup = try? mapping.value(for: CodingKeys.cgroup).string(
+            envs: envs
+        )
         self.cgroup_parent = try? mapping.value(for: CodingKeys.cgroup_parent)
             .string(envs: envs)
 
@@ -1632,23 +1126,27 @@ extension Service: NodeConvertible {
             envs: envs
         )
 
-        self.develop = try? Service.Develop(mapping.value(for: CodingKeys.develop), envs: envs)
-
-        self.device_cgroup_rules = try? mapping.value(for: CodingKeys.device_cgroup_rules)
-            .array(of: String.self, envs: envs)
-        self.devices = try? mapping.value(for: CodingKeys.devices)
-            .array(of: String.self, envs: envs)
-
-        self.dns = try? decodeStringOrList(mapping, forKey: CodingKeys.dns, envs: envs)
-        self.dns_opt = try? mapping.value(for: CodingKeys.dns_opt)
-            .array(of: String.self, envs: envs)
-        self.dns_search = try? decodeStringOrList(
-            mapping,
-            forKey: CodingKeys.dns_search,
+        self.develop = try? Service.Develop(
+            mapping.value(for: CodingKeys.develop),
             envs: envs
         )
 
-        self.domainname = try? mapping.value(for: CodingKeys.domainname).string(envs: envs)
+        self.device_cgroup_rules = try? mapping.value(
+            for: CodingKeys.device_cgroup_rules
+        )
+        .array(of: String.self, envs: envs)
+        self.devices = try? mapping.value(for: CodingKeys.devices)
+            .array(of: String.self, envs: envs)
+
+        self.dns = try? mapping.value(for: CodingKeys.dns).array(envs: envs)
+
+        self.dns_opt = try? mapping.value(for: CodingKeys.dns_opt)
+            .array(of: String.self, envs: envs)
+        self.dns_search = try? mapping.value(for: CodingKeys.dns_search).array(envs: envs)
+
+        self.domainname = try? mapping.value(for: CodingKeys.domainname).string(
+            envs: envs
+        )
 
         // `expose` entries may be bare port numbers or quoted strings.
         self.expose = try? mapping.value(for: CodingKeys.expose)
@@ -1661,7 +1159,10 @@ extension Service: NodeConvertible {
         self.external_links = try? mapping.value(for: CodingKeys.external_links)
             .array(of: String.self, envs: envs)
 
-        self.gpus = try? Service.GPU(mapping.value(for: CodingKeys.gpus), envs: envs)
+        self.gpus = try? Service.GPU(
+            mapping.value(for: CodingKeys.gpus),
+            envs: envs
+        )
 
         self.group_add = try? mapping.value(for: CodingKeys.group_add)
             .array(of: String.self, envs: envs)
@@ -1669,23 +1170,28 @@ extension Service: NodeConvertible {
         self.`init` = try? mapping.value(for: CodingKeys.`init`).bool
 
         self.ipc = try? mapping.value(for: CodingKeys.ipc).string(envs: envs)
-        self.isolation = try? mapping.value(for: CodingKeys.isolation).string(envs: envs)
-
-        self.label_file = try? decodeStringOrList(
-            mapping,
-            forKey: CodingKeys.label_file,
+        self.isolation = try? mapping.value(for: CodingKeys.isolation).string(
             envs: envs
         )
+
+        self.label_file = try? mapping.value(for: CodingKeys.label_file).array(envs: envs)
 
         self.links = try? mapping.value(for: CodingKeys.links)
             .array(of: String.self, envs: envs)
 
-        self.logging = try? Service.Logging(mapping.value(for: CodingKeys.logging), envs: envs)
+        self.logging = try? Service.Logging(
+            mapping.value(for: CodingKeys.logging),
+            envs: envs
+        )
 
-        self.mac_address = try? mapping.value(for: CodingKeys.mac_address).string(envs: envs)
-        self.mem_reservation = try? mapping.value(for: CodingKeys.mem_reservation)
+        self.mac_address = try? mapping.value(for: CodingKeys.mac_address)
             .string(envs: envs)
-        self.mem_swappiness = try? mapping.value(for: CodingKeys.mem_swappiness).int(envs: envs)
+        self.mem_reservation = try? mapping.value(
+            for: CodingKeys.mem_reservation
+        )
+        .string(envs: envs)
+        self.mem_swappiness = try? mapping.value(for: CodingKeys.mem_swappiness)
+            .int(envs: envs)
 
         // `memswap_limit` accepts a string or a bare int.
         self.memswap_limit = try? mapping.value(for: CodingKeys.memswap_limit)
@@ -1693,91 +1199,109 @@ extension Service: NodeConvertible {
 
         // `models` accepts a list of model names, or a map of model name ->
         // Model options (possibly null).
-        let modelsNode = try? mapping.value(for: CodingKeys.models)
-        if let modelArray = try? modelsNode?.array(of: String.self, envs: envs),
-            !modelArray.isEmpty
-        {
-            self.models = modelArray
-            self.modelConfigurations = Dictionary(
-                uniqueKeysWithValues: modelArray.map { ($0, Service.Model()) }
-            )
-        } else if let modelsMapping = modelsNode?.mapping {
-            var normalized: [String: Service.Model] = [:]
-            for (key, valueNode) in modelsMapping {
-                guard let keyString = key.string else { continue }
-                if valueNode.null != nil {
-                    normalized[keyString] = Service.Model()
-                } else {
-                    normalized[keyString] = try? Service.Model(valueNode, envs: envs)
-                    if normalized[keyString] == nil {
-                        normalized[keyString] = Service.Model()
-                    }
-                }
-            }
-            self.models = normalized.keys.sorted()
-            self.modelConfigurations = normalized
-        } else {
-            self.models = nil
-            self.modelConfigurations = nil
-        }
+        // services:
+        //   short_syntax:
+        //    image: app
+        //    models:
+        //     - my_model
+        // or
+        // services:
+        //  long_syntax:
+        //    image: app
+        //    models:
+        //      my_model:
+        //        endpoint_var: MODEL_URL
+        //        model_var: MODEL
 
-        self.network_mode = try? mapping.value(for: CodingKeys.network_mode).string(envs: envs)
-        self.oom_kill_disable = try? mapping.value(for: CodingKeys.oom_kill_disable).bool
-        self.oom_score_adj = try? mapping.value(for: CodingKeys.oom_score_adj).int(envs: envs)
+        self.models = try? mapping.value(for: CodingKeys.models).dictionary(envs: envs, transformMap: { _, node in
+            return try? Service.Model(
+                node,
+                envs: envs
+            )
+        }, transformArray: { stringArray in
+            return stringArray.toDictionary(
+                valueType: Model?.self,
+                makeValue: { _ in nil }
+            )
+        })
+
+        self.network_mode = try? mapping.value(for: CodingKeys.network_mode)
+            .string(envs: envs)
+        self.oom_kill_disable = try? mapping.value(
+            for: CodingKeys.oom_kill_disable
+        ).bool
+        self.oom_score_adj = try? mapping.value(for: CodingKeys.oom_score_adj)
+            .int(envs: envs)
 
         self.pid = try? mapping.value(for: CodingKeys.pid).string(envs: envs)
-        self.pids_limit = try? mapping.value(for: CodingKeys.pids_limit).int(envs: envs)
+        self.pids_limit = try? mapping.value(for: CodingKeys.pids_limit).int(
+            envs: envs
+        )
 
         self.post_start = try? mapping.value(for: CodingKeys.post_start)
             .array(of: Service.Hook.self, envs: envs)
         self.pre_stop = try? mapping.value(for: CodingKeys.pre_stop)
             .array(of: Service.Hook.self, envs: envs)
 
-        self.provider = try? Service.Provider(mapping.value(for: CodingKeys.provider), envs: envs)
+        self.provider = try? Service.Provider(
+            mapping.value(for: CodingKeys.provider),
+            envs: envs
+        )
 
-        self.pull_policy = try? mapping.value(for: CodingKeys.pull_policy).string(envs: envs)
-        self.runtime = try? mapping.value(for: CodingKeys.runtime).string(envs: envs)
+        self.pull_policy = try? mapping.value(for: CodingKeys.pull_policy)
+            .string(envs: envs)
+        self.runtime = try? mapping.value(for: CodingKeys.runtime).string(
+            envs: envs
+        )
         self.scale = try? mapping.value(for: CodingKeys.scale).int(envs: envs)
 
         self.security_opt = try? mapping.value(for: CodingKeys.security_opt)
             .array(of: String.self, envs: envs)
 
         // `shm_size` accepts a string or a bare int.
-        self.shm_size = try? mapping.value(for: CodingKeys.shm_size).string(envs: envs)
+        self.shm_size = try? mapping.value(for: CodingKeys.shm_size).string(
+            envs: envs
+        )
 
-        self.stop_grace_period = try? mapping.value(for: CodingKeys.stop_grace_period)
+        self.stop_grace_period = try? mapping.value(
+            for: CodingKeys.stop_grace_period
+        ).string(envs: envs)
+        self.stop_signal = try? mapping.value(for: CodingKeys.stop_signal)
             .string(envs: envs)
-        self.stop_signal = try? mapping.value(for: CodingKeys.stop_signal).string(envs: envs)
 
-        self.storage_opt = try? mapping.value(for: CodingKeys.storage_opt).dictionary(envs: envs)
+        self.storage_opt = try? mapping.value(for: CodingKeys.storage_opt)
+            .dictionary(envs: envs)
 
         // `sysctls` accepts a map or a `key=value` list.
-        if let asMap = try? mapping.value(for: CodingKeys.sysctls).dictionary(envs: envs) {
-            self.sysctls = asMap
-        } else if let asList = try? mapping.value(for: CodingKeys.sysctls)
-            .array(of: String.self, envs: envs), !asList.isEmpty
-        {
-            self.sysctls = Service.parseKeyValueList(asList)
-        } else {
-            self.sysctls = nil
-        }
+        self.sysctls = try? mapping.value(for: CodingKeys.sysctls).dictionary(
+            envs: envs,
+            isEnv: false
+        )
 
-        self.tmpfs = try? decodeStringOrList(mapping, forKey: CodingKeys.tmpfs, envs: envs)
+        self.tmpfs = try? mapping.value(for: CodingKeys.tmpfs).array(envs: envs)
 
         // `ulimits` is a map of ulimit name -> Ulimit (int or {soft, hard}).
-        if let ulimitsMapping = try? mapping.value(for: CodingKeys.ulimits).mapping {
-            var normalized: [String: Ulimit] = [:]
-            for (key, valueNode) in ulimitsMapping {
-                guard let keyString = key.string else { continue }
-                normalized[keyString] = try? Ulimit(valueNode, envs: envs)
+        self.ulimits = try? mapping.value(for: CodingKeys.tmpfs).dictionary(
+            envs: envs,
+            transformMap: { key, value in
+                try Ulimit(value, envs: envs)
+            },
+            transformArray: { stringArray in
+                throw DecodingError.dataCorrupted(
+                    .init(
+                        codingPath: [CodingKeys.ulimits],
+                        debugDescription:
+                            "Invalid yaml data. Expected a mapping or a single value."
+                    )
+                )
             }
-            self.ulimits = normalized.isEmpty ? nil : normalized
-        } else {
-            self.ulimits = nil
-        }
+        )
 
-        self.use_api_socket = try? mapping.value(for: CodingKeys.use_api_socket).bool
-        self.userns_mode = try? mapping.value(for: CodingKeys.userns_mode).string(envs: envs)
+
+        self.use_api_socket = try? mapping.value(for: CodingKeys.use_api_socket)
+            .bool
+        self.userns_mode = try? mapping.value(for: CodingKeys.userns_mode)
+            .string(envs: envs)
         self.uts = try? mapping.value(for: CodingKeys.uts).string(envs: envs)
 
         self.volumes_from = try? mapping.value(for: CodingKeys.volumes_from)
@@ -1786,24 +1310,57 @@ extension Service: NodeConvertible {
         self.dependedBy = []
     }
 
-    /// `Node`-based counterpart to `decodeStringOrList`.
-    private func decodeStringOrList(
-        _ mapping: Node.Mapping,
-        forKey key: CodingKeys,
-        envs: [String: String]
-    ) throws -> [String]? {
-        if let asList = try? mapping.value(for: key).array(of: String.self, envs: envs),
-            !asList.isEmpty
-        {
-            return asList
-        } else if let asString = try? mapping.value(for: key).string(envs: envs) {
-            return [asString]
-        } else {
-            return nil
-        }
-    }
+    //    private func decodeStringOrList(
+    //        _ mapping: Node.Mapping,
+    //        forKey key: CodingKeys,
+    //        envs: [String: String]
+    //    ) throws -> [String]? {
+    //        if let asList = try? mapping.value(for: key).array(
+    //            of: String.self,
+    //            envs: envs
+    //        ),
+    //            !asList.isEmpty
+    //        {
+    //            return asList
+    //        } else if let asString = try? mapping.value(for: key).string(envs: envs)
+    //        {
+    //            return [asString]
+    //        } else {
+    //            return nil
+    //        }
+    //    }
+    //
+    //    private func decodeMapOrList(
+    //        _ mapping: Node.Mapping,
+    //        forKey key: CodingKeys,
+    //        envs: [String: String],
+    //        isEnv: Bool
+    //    ) throws -> [String: String]? {
+    //        if let asMap = try? mapping.value(for: key).dictionary(envs: envs) {
+    //            return asMap
+    //        } else if let asList = try? mapping.value(for: key)
+    //            .array(of: String.self, envs: envs), !asList.isEmpty
+    //        {
+    //            return Utility.parseKeyValueList(asList, isEnv: isEnv)
+    //        } else {
+    //            return nil
+    //        }
+    //    }
+
 }
 
+extension Array {
+    //    let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
+    func toDictionary<T>(
+        valueType: T.Type = T.self,
+        makeValue: @escaping (Element) -> T
+    )
+        -> [Element: T]
+    {
+        Dictionary(uniqueKeysWithValues: self.map { ($0, makeValue($0)) })
+    }
+
+}
 
 //#Playground {
 //    let yaml = """

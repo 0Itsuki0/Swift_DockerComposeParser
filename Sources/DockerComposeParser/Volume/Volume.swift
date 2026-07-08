@@ -7,6 +7,15 @@
 
 import Yams
 
+// TODO: - Check external (https://docs.docker.com/reference/compose-file/volumes/#external)
+//
+//If set to true:
+//
+//external specifies that this volume already exists on the platform and its lifecycle is managed outside of that of the application. Compose then doesn't create the volume and returns an error if the volume doesn't exist.
+//All other attributes apart from name are irrelevant. If Compose detects any other attribute, it rejects the Compose file as invalid.
+//In the following example, instead of attempting to create a volume called {project_name}_db-data, Compose looks for an existing volume simply called db-data and mounts it into the backend service's containers.
+
+
 /// Represents a top-level volume definition.
 /// https://docs.docker.com/reference/compose-file/volumes/#attributes
 public struct Volume: Codable, Hashable {
@@ -14,13 +23,15 @@ public struct Volume: Codable, Hashable {
     public var driver: String?
 
     /// Driver-specific options
-    public var driver_opts: [String: String]?
+    // optional value to handle reset
+    public var driver_opts: [String: String?]?
 
     /// Explicit name for the volume
     public var name: String?
 
     /// Labels for the volume
-    public var labels: [String: String]?
+    // optional value to handle reset
+    public var labels: [String: String?]?
 
     /// specifies that this volume already exists on the platform and its lifecycle is managed outside of that of the application.
     /// Compose then doesn't create the volume and returns an error if the volume doesn't exist.

@@ -17,12 +17,6 @@ extension Service {
             self.path = path
             self.weight = weight
         }
-
-        public init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.path = try container.decode(String.self, forKey: .path)
-            self.weight = try container.decode(Int.self, forKey: .weight)
-        }
     }
 }
 import Yams

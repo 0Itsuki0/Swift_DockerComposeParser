@@ -10,10 +10,11 @@ extension Service {
         public var command: [String]?
         public var user: String?
         public var privileged: Bool?
-        public var environment: [String: String]?
+        // optional value to handle reset
+        public var environment: [String: String?]?
         
         public var tags: [String: ComposeTag?] = [:]
-
+        
         public init(
             command: [String]? = nil,
             user: String? = nil,
@@ -25,43 +26,9 @@ extension Service {
             self.privileged = privileged
             self.environment = environment
         }
-
-        public init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            if let commandArray = try? container.decodeIfPresent(
-                [String].self,
-                forKey: .command
-            ) {
-                command = commandArray
-            } else if let commandString = try? container.decodeIfPresent(
-                String.self,
-                forKey: .command
-            ) {
-                command = [commandString]
-            } else {
-                command = nil
-            }
-            user = try container.decodeIfPresent(String.self, forKey: .user)
-            privileged = try container.decodeIfPresent(
-                Bool.self,
-                forKey: .privileged
-            )
-            if let asMap = try? container.decodeIfPresent(
-                [String: String].self,
-                forKey: .environment
-            ) {
-                environment = asMap
-            } else if let asList = try? container.decodeIfPresent(
-                [String].self,
-                forKey: .environment
-            ) {
-                environment = Service.parseEnvironmentList(asList)
-            } else {
-                environment = nil
-            }
-        }
     }
 }
+
 import Yams
 
 extension Service.Hook: NodeConvertible {
@@ -101,7 +68,7 @@ extension Service.Hook: NodeConvertible {
         } else if let asList = try? mapping.value(for: CodingKeys.environment)
             .array(of: String.self, envs: envs), !asList.isEmpty
         {
-            self.environment = Service.parseEnvironmentList(asList)
+            self.environment = Utility.parseKeyValueList(asList, isEnv: false)
         } else {
             self.environment = nil
         }

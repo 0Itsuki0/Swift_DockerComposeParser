@@ -13,7 +13,8 @@ extension Service {
         /// Optional path to the Dockerfile within the context
         public var dockerfile: String?
         /// Build arguments
-        public var args: [String: String]?
+        /// optional value to handle reset
+        public var args: [String: String?]?
         
         public var tags: [String: ComposeTag?] = [:]
 

@@ -8,7 +8,6 @@
 import Foundation
 import Playgrounds
 import Yams
-import Collections
 
 extension Array where Element == String {
     var allUnique: Bool {
@@ -16,37 +15,42 @@ extension Array where Element == String {
     }
 }
 
+extension Array where Element == [String: Any] {
+    var allKeyUnique: Bool {
+        Set(self.flatMap(\.keys)).count == count
+    }
+}
+
 public enum Utility {
+
     public static func checkIncludeUniqueness(_ compose: [DockerCompose]) throws
     {
-        
-        if !compose.flatMap({$0.services.keys}).allUnique {
+
+        if !compose.compactMap(\.services).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate service name found")
         }
-        
-        if !compose.flatMap({$0.configs?.keys ?? []}).allUnique {
+        if !compose.compactMap(\.configs).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate configs name found")
         }
-        
-        if !compose.flatMap({$0.volumes?.keys ?? []}).allUnique {
+        if !compose.compactMap(\.volumes).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate volumes name found")
         }
-        
-        if !compose.flatMap({$0.secrets?.keys ?? []}).allUnique {
+        if !compose.compactMap(\.secrets).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate secrets name found")
         }
-        
-        if !compose.flatMap({$0.models?.keys ?? []}).allUnique {
+        if !compose.compactMap(\.models).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate models name found")
         }
-        
-        if !compose.flatMap({$0.configs?.keys ?? []}).allUnique {
+        if !compose.compactMap(\.services).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate service name found")
+        }
+        if !compose.compactMap(\.configs).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate configs name found")
         }
-        
-        if !compose.flatMap({$0.networks?.keys ?? []}).allUnique {
+        if !compose.compactMap(\.networks).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate networks name found")
         }
+
     }
 
     public static func resolveVariable(
@@ -90,27 +94,140 @@ public enum Utility {
     }
 
     public static func loadEnvFile(_ fileURL: URL) throws -> [String: String] {
-        var envVars: [String: String] = [:]
         let content = try String(contentsOf: fileURL, encoding: .utf8)
-        let lines = content.split(separator: "\n")
-        for line in lines {
-            let trimmedLine = line.trimmingCharacters(
-                in: .whitespacesAndNewlines
+        let lines = content.split(separator: "\n").map(String.init)
+        return parseKeyValueList(Array(lines), isEnv: true)
+    }
+
+    // Translates a plain `KEY=value` list (as used by `annotations`, `labels`, and
+    // `sysctls`) into a `[String: String]` map.
+    public static func parseKeyValueList(_ entries: [String], isEnv: Bool)
+        -> [String: String]
+    {
+        var dict: [String: String] = [:]
+        for entry in entries {
+            let entry = entry.replacingOccurrences(
+                of: #"\s+#.*$"#,
+                with: "",
+                options: .regularExpression
             )
-            // Ignore empty lines and comments
-            if !trimmedLine.isEmpty && !trimmedLine.starts(with: "#") {
-                // Parse key=value pairs
-                if let eqIndex = trimmedLine.firstIndex(of: "=") {
-                    let key = String(trimmedLine[..<eqIndex])
-                    let value = String(
-                        trimmedLine[trimmedLine.index(after: eqIndex)...]
-                    )
-                    envVars[key] = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !entry.isEmpty, !entry.starts(with: "#") else {
+                continue
+            }
+            if let eqIdx = entry.firstIndex(of: "=") {
+                let key = String(entry[..<eqIdx])
+                let value = String(entry[entry.index(after: eqIdx)...])
+                dict[key] = value
+            } else {
+                if isEnv {
+                    dict[entry] =
+                        ProcessInfo.processInfo.environment[entry] ?? ""
+                } else {
+                    // Unlike `parseEnvironmentList`, a
+                    // bare `KEY` with no `=` is stored with an empty value rather than falling
+                    // back to the host's environment, since these keys have no "inherit from host" meaning.
+                    dict[entry] = ""
                 }
             }
         }
-        return envVars
+        return dict
+
     }
+
+    // handling properties such as `service.labels` that can accept a list of key=value, or a map of key: value.
+    // labels:
+    // com.example.description: "Accounting webapp"
+    // com.example.department: "Finance"
+    // com.example.label-with-empty-value: ""
+    // or
+    // labels:
+    // - "com.example.description=Accounting webapp"
+    // - "com.example.department=Finance"
+    // - "com.example.label-with-empty-value"
+//    public static func decodeKeyValuePairs(
+//        _ node: Node?,
+//        envs: [String: String],
+//        isEnv: Bool
+//    ) -> [String: String]? {
+//        guard let node else {
+//            return nil
+//        }
+//        if let asMap = try? node.dictionary(envs: envs) {
+//            return asMap
+//        } else if let asList = try? node.array(of: String.self, envs: envs), !asList.isEmpty
+//        {
+//            return Utility.parseKeyValueList(asList, isEnv: isEnv)
+//        } else {
+//            return nil
+//        }
+//    }
+//    
+//    // handling properties such as `service.models` that can accept a list of model names, or a map of model name -> Model options (possibly null).
+//    // Example:
+//    // services:
+//    // short_syntax:
+//    //   image: app
+//    //   models:
+//    //     - my_model
+//    // long_syntax:
+//    //   image: app
+//    //   models:
+//    //     my_model:
+//    //       endpoint_var: MODEL_URL
+//    //       model_var: MODEL
+//    public static func decodeMapOrList<T>(
+//        _ node: Node?,
+//        type: T.Type = T.self,
+//        envs: [String: String],
+//        transformMap: @escaping (_ key: String, _ value: Node) -> T,
+//        transformArray: @escaping ([String]) ->[String: T]?
+//    ) -> [String: T]? {
+//        guard let node else {
+//            return nil
+//        }
+//        if let asMap = node.mapping {
+//            var normalized: [String: T] = [:]
+//            for (key, valueNode) in asMap {
+//                guard let keyString = key.string else { continue }
+//                normalized[keyString] = transformMap(keyString, valueNode)
+//            }
+//            return normalized
+//        } else if let asList = try? node.array(of: String.self, envs: envs), !asList.isEmpty
+//        {
+//            return transformArray(asList)
+//        } else {
+//            return nil
+//        }
+//    }
+//    
+//
+//    // handle properties such as `service.dns` that can be specified as either a single value or a list
+//    // dns: 8.8.8.8
+//    // dns:
+//    // - 8.8.8.8
+//    // - 9.9.9.9
+//    public static func decodeStringOrList(
+//        _ node: Node?,
+//        envs: [String: String]
+//    ) -> [String]? {
+//        guard let node else {
+//            return nil
+//        }
+//        if let asList = try? node.array(
+//            of: String.self,
+//            envs: envs
+//        ),
+//            !asList.isEmpty
+//        {
+//            return asList
+//        } else if let asString = try? node.string(envs: envs)
+//        {
+//            return [asString]
+//        } else {
+//            return nil
+//        }
+//    }
 }
 
 extension KeyedDecodingContainer {
@@ -280,7 +397,7 @@ extension Decoder {
           backend:
             # Use a custom driver
             driver: custom-driver
-        
+
         volumes:
           db-data: &default-volume
             driver: default
@@ -305,7 +422,7 @@ extension Decoder {
         //            }
         //        }
         let nodes = try Yams.compose_all(yaml: yaml)
-//        print(nodes.count(where: {_ in true}))
+        //        print(nodes.count(where: {_ in true}))
         for node in nodes {
             printNode(node)
         }
@@ -319,16 +436,28 @@ func printNode(_ node: Node) {
     case .alias(let alias):
         print("Alias: ", alias)
     case .mapping(let mapping):
-        print("Mapping: ", mapping.tag, mapping.style, mapping.mark, mapping.anchor)
+        print(
+            "Mapping: ",
+            mapping.tag,
+            mapping.style,
+            mapping.mark,
+            mapping.anchor
+        )
         for pair in mapping {
             print(" Key: ", pair.key)
-//            print(" value", printNode(pair.value))
+            //            print(" value", printNode(pair.value))
             print(" value", printNode(pair.value))
         }
     case .scalar(let scaler):
         print("Scaler: ", scaler)
     case .sequence(let sequence):
-        print("Sequence: ", sequence.tag, sequence.style, sequence.mark, sequence.anchor)
+        print(
+            "Sequence: ",
+            sequence.tag,
+            sequence.style,
+            sequence.mark,
+            sequence.anchor
+        )
         for element in sequence {
             print(" Element: ", printNode(element))
         }

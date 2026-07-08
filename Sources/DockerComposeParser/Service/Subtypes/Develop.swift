@@ -15,14 +15,6 @@ extension Service {
         public init(watch: [DevelopWatchItem]? = nil) {
             self.watch = watch
         }
-
-        public init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.watch = try container.decodeIfPresent(
-                [DevelopWatchItem].self,
-                forKey: .watch
-            )
-        }
     }
 }
 

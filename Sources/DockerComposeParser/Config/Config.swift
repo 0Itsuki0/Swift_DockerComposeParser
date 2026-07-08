@@ -15,36 +15,25 @@ public struct Config: Codable {
     public var external: Bool?
     /// Explicit name for the config
     public var name: String?
-    /// Labels for the config
-    public var labels: [String: String]?
+    public var environment: String?
+    public var content: String?
 
     // key : tag
     public var tags: [String: ComposeTag?] = [:]
-
-    /// Custom initializer to handle `external: true` (boolean) or `external: { name: "my_cfg" }` (object).
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        file = try container.decodeIfPresent(String.self, forKey: .file)
-        name = try container.decodeIfPresent(String.self, forKey: .name)
-        labels = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .labels
-        )
-        external = try container.decodeIfPresent(Bool.self, forKey: .external)
-    }
 
     public init(
         file: String? = nil,
         external: Bool? = nil,
         name: String? = nil,
-        labels: [String: String]? = nil
+        environment: String? = nil,
+        content: String? = nil
     ) {
         self.file = file
         self.external = external
         self.name = name
-        self.labels = labels
+        self.environment = environment
+        self.content = content
     }
-
 }
 
 extension Config: NodeConvertible {
@@ -60,16 +49,31 @@ extension Config: NodeConvertible {
         }
 
         self.file = try? mapping.value(for: CodingKeys.file).string(envs: envs)
-        self.tags[CodingKeys.file.stringValue] = mapping.composeTag(for: CodingKeys.file)
-
-        self.labels = try? mapping.value(for: CodingKeys.labels)
-            .dictionary(envs: envs)
-        self.tags[CodingKeys.labels.stringValue] = mapping.composeTag(for: CodingKeys.labels)
+        self.tags[CodingKeys.file.stringValue] = mapping.composeTag(
+            for: CodingKeys.file
+        )
 
         self.name = try? mapping.value(for: CodingKeys.name).string(envs: envs)
-        self.tags[CodingKeys.name.stringValue] = mapping.composeTag(for: CodingKeys.name)
+        self.tags[CodingKeys.name.stringValue] = mapping.composeTag(
+            for: CodingKeys.name
+        )
 
         self.external = try? mapping.value(for: CodingKeys.external).bool
-        self.tags[CodingKeys.external.stringValue] = mapping.composeTag(for: CodingKeys.external)
+        self.tags[CodingKeys.external.stringValue] = mapping.composeTag(
+            for: CodingKeys.external
+        )
+
+        self.environment = try? mapping.value(for: CodingKeys.environment)
+            .string(envs: envs)
+        self.tags[CodingKeys.environment.stringValue] = mapping.composeTag(
+            for: CodingKeys.environment
+        )
+
+        self.content = try? mapping.value(for: CodingKeys.content).string(
+            envs: envs
+        )
+        self.tags[CodingKeys.content.stringValue] = mapping.composeTag(
+            for: CodingKeys.content
+        )
     }
 }

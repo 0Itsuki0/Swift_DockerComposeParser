@@ -48,7 +48,7 @@ public struct Include: Codable, Hashable {
     public var env_file: [String]?
 
     // key : tag
-    public  var tags: [String: ComposeTag?] = [:]
+    public var tags: [String: ComposeTag?] = [:]
 
     public init(
         path: [String],
@@ -150,11 +150,6 @@ extension Include: NodeConvertible {
             )
         }
 
-
-        // include:
-        // - path:
-        //     - ../commons/compose.yaml
-        //     - ./commons-override.yaml
         guard let pathValue = try? mapping.value(for: CodingKeys.path) else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -165,61 +160,39 @@ extension Include: NodeConvertible {
             )
         }
 
-        self.tags[CodingKeys.path.stringValue] = pathValue.composeTag
-
-        if let array = try? pathValue.array(
-            of: String.self,
-            envs: envs
-        ), !array.isEmpty {
-            self.path = array
-        }
+        // two syntax supported:
+        // include:
+        // - path:
+        //     - ../commons/compose.yaml
+        //     - ./commons-override.yaml
+        // or
         // include:
         // - path: ../another/compose.yaml
-        else if let string = try? pathValue.string(
-            envs: envs
-        ) {
-            self.path = [string]
-        } else {
-            throw DecodingError.dataCorrupted(
-                .init(
-                    codingPath: [CodingKeys.path],
-                    debugDescription:
-                        "Include 'path' has to be an array of strings or a single string."
-                )
-            )
-        }
-        
+        self.path = try pathValue.array(envs: envs)
+        self.tags[CodingKeys.path.stringValue] = pathValue.composeTag
+
         // `try?` act as decodeIfPresent
         self.project_directory = try? mapping.value(
             for: CodingKeys.project_directory
         ).string(envs: envs)
-        
-        self.tags[CodingKeys.project_directory.stringValue] = mapping.composeTag(for: CodingKeys.project_directory)
-
+        self.tags[CodingKeys.project_directory.stringValue] =
+            mapping.composeTag(for: CodingKeys.project_directory)
 
         let envValue = try? mapping.value(for: CodingKeys.env_file)
-        self.tags[CodingKeys.env_file.stringValue] = envValue?.composeTag
-
+        // two syntax supported:
         // include:
         // - path: ../another/compose.yaml
         //   env_file:
         //     - ../another/.env
         //     - ../another/dev.env
-        if let array = try? envValue?.array(
-            of: String.self,
-            envs: envs
-        ), !array.isEmpty {
-            self.env_file = array
-        }
+        // or
         // include:
         // - path: ../commons/compose.yaml
         //   project_directory: ..
         //   env_file: ../another/.env
-        else if let string = try? envValue?.string(envs: envs) {
-            self.env_file = [string]
-        } else {
-            self.env_file = nil
-        }
+        self.env_file = try envValue?.array(envs: envs)
+        self.tags[CodingKeys.env_file.stringValue] = envValue?.composeTag
+
     }
 }
 
@@ -265,88 +238,3 @@ extension Include {
     }
 
 }
-
-#Playground {
-    let yaml = """
-        include:
-           - path: !override
-               - ../commons/compose.yaml
-               - ./commons-override.yaml
-        """
-
-    do {
-        let nodes = try Yams.compose_all(yaml: yaml)
-        //        print(nodes.count(where: {_ in true}))
-        for node in nodes {
-            if let pairs = node.mapping {
-                for pair in pairs {
-                    if pair.key == "include" {
-                        print(pair.value.tag)
-                        let includes = try pair.value.array(
-                            of: Include.self,
-                            envs: [:]
-                        )
-                        print("include:", includes)
-                    }
-                }
-            }
-        }
-    } catch (let error) {
-        print(error)
-    }
-}
-
-//
-//extension String {
-//    init(_ node: Node) throws {
-//        if let string = node.string {
-//            self = string
-//            return
-//        }
-//
-//        if let int = node.int {
-//            self = "\(int)"
-//            return
-//        }
-//
-//        throw DecodingError.dataCorrupted(
-//            .init(
-//                codingPath: [],
-//                debugDescription: "Invalid yaml data. Expected a string."
-//            )
-//        )
-//    }
-//}
-
-//extension Array {
-//
-//    init<T: ScalarConstructible>(of type: T.Type = T.self, from node: Node) throws {
-//        guard let array = node.array(of: T.self) else {
-//            throw DecodingError.dataCorrupted(
-//                .init(
-//                    codingPath: [],
-//                    debugDescription: "Invalid yaml data. Expected an array."
-//                )
-//        }
-//    }
-//}
-
-//func printNode(_ node: Node) {
-//    switch node {
-//    case .alias(let alias):
-//        print("Alias: ", alias)
-//    case .mapping(let mapping):
-//        print("Mapping: ", mapping.tag, mapping.style, mapping.mark, mapping.anchor)
-//        for pair in mapping {
-//            print(" Key: ", pair.key)
-//            print(" value", printNode(pair.value))
-//        }
-//    case .scalar(let scaler):
-//        print("Scaler: ", scaler)
-//    case .sequence(let sequence):
-//        print("Sequence: ", sequence.tag, sequence.style, sequence.mark, sequence.anchor)
-//        for element in sequence {
-//            print(" Element: ", printNode(element))
-//        }
-//    }
-//}

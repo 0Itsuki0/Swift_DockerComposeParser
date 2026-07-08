@@ -10,7 +10,8 @@
 extension Service {
     public struct Logging: Codable, Hashable {
         public var driver: String?
-        public var options: [String: String]?
+        // optional value to handle reset
+        public var options: [String: String?]?
         
         public var tags: [String: ComposeTag?] = [:]
 

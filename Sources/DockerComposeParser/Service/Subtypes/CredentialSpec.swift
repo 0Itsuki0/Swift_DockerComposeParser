@@ -23,22 +23,6 @@ extension Service {
             self.registry = registry
             self.config = config
         }
-
-        public init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.file = try container.decodeIfPresent(
-                String.self,
-                forKey: .file
-            )
-            self.registry = try container.decodeIfPresent(
-                String.self,
-                forKey: .registry
-            )
-            self.config = try container.decodeIfPresent(
-                String.self,
-                forKey: .config
-            )
-        }
     }
 }
 import Yams

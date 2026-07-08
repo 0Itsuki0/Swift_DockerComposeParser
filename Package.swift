@@ -15,10 +15,6 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2"),
-        .package(
-          url: "https://github.com/apple/swift-collections.git",
-          .upToNextMinor(from: "1.6.0") // or `.upToNextMajor`
-        )
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -27,7 +23,6 @@ let package = Package(
             name: "DockerComposeParser",
             dependencies: [
                 "Yams",
-                .product(name: "Collections", package: "swift-collections")
             ],
             path: "Sources/DockerComposeParser"
 

@@ -13,8 +13,6 @@ extension Service {
         
         public var tags: [String: ComposeTag?] = [:]
 
-        enum CodingKeys: String, CodingKey { case soft, hard }
-
         public init(soft: Int, hard: Int) {
             self.soft = soft
             self.hard = hard
@@ -23,29 +21,6 @@ extension Service {
         public init(single: Int) {
             self.soft = single
             self.hard = single
-        }
-
-        public init(from decoder: Decoder) throws {
-            if let single = try? decoder.singleValueContainer().decode(Int.self)
-            {
-                soft = single
-                hard = single
-            } else {
-                let container = try decoder.container(keyedBy: CodingKeys.self)
-                soft = try container.decode(Int.self, forKey: .soft)
-                hard = try container.decode(Int.self, forKey: .hard)
-            }
-        }
-
-        public func encode(to encoder: Encoder) throws {
-            if soft == hard {
-                var container = encoder.singleValueContainer()
-                try container.encode(soft)
-            } else {
-                var container = encoder.container(keyedBy: CodingKeys.self)
-                try container.encode(soft, forKey: .soft)
-                try container.encode(hard, forKey: .hard)
-            }
         }
     }
 }

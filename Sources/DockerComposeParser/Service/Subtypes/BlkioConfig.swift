@@ -33,34 +33,6 @@ extension Service {
             self.device_write_bps = deviceWriteBps
             self.device_write_iops = deviceWriteIops
         }
-
-        public init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.weight = try container.decodeIfPresent(
-                Int.self,
-                forKey: .weight
-            )
-            self.weight_device = try container.decodeIfPresent(
-                [BlkioWeightDevice].self,
-                forKey: .weight_device
-            )
-            self.device_read_bps = try container.decodeIfPresent(
-                [BlkioDeviceRate].self,
-                forKey: .device_read_bps
-            )
-            self.device_read_iops = try container.decodeIfPresent(
-                [BlkioDeviceRate].self,
-                forKey: .device_read_iops
-            )
-            self.device_write_bps = try container.decodeIfPresent(
-                [BlkioDeviceRate].self,
-                forKey: .device_write_bps
-            )
-            self.device_write_iops = try container.decodeIfPresent(
-                [BlkioDeviceRate].self,
-                forKey: .device_write_iops
-            )
-        }
     }
 }
 
@@ -79,20 +51,39 @@ extension Service.BlkioConfig: NodeConvertible {
         }
 
         self.weight = try? mapping.value(for: CodingKeys.weight).int(envs: envs)
+        self.tags[CodingKeys.weight.stringValue] = mapping.composeTag(
+            for: CodingKeys.weight
+        )
 
         self.weight_device = try? mapping.value(for: CodingKeys.weight_device)
             .array(of: Service.BlkioWeightDevice.self, envs: envs)
+        self.tags[CodingKeys.weight_device.stringValue] = mapping.composeTag(
+            for: CodingKeys.weight_device
+        )
 
         self.device_read_bps = try? mapping.value(for: CodingKeys.device_read_bps)
             .array(of: Service.BlkioDeviceRate.self, envs: envs)
+        self.tags[CodingKeys.device_read_bps.stringValue] = mapping.composeTag(
+            for: CodingKeys.device_read_bps
+        )
 
         self.device_read_iops = try? mapping.value(for: CodingKeys.device_read_iops)
             .array(of: Service.BlkioDeviceRate.self, envs: envs)
+        self.tags[CodingKeys.device_read_iops.stringValue] = mapping.composeTag(
+            for: CodingKeys.device_read_iops
+        )
 
         self.device_write_bps = try? mapping.value(for: CodingKeys.device_write_bps)
             .array(of: Service.BlkioDeviceRate.self, envs: envs)
+        self.tags[CodingKeys.device_write_bps.stringValue] = mapping.composeTag(
+            for: CodingKeys.device_write_bps
+        )
 
         self.device_write_iops = try? mapping.value(for: CodingKeys.device_write_iops)
             .array(of: Service.BlkioDeviceRate.self, envs: envs)
+        self.tags[CodingKeys.device_write_iops.stringValue] = mapping.composeTag(
+            for: CodingKeys.device_write_iops
+        )
+
     }
 }

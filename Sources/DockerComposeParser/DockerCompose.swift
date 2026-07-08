@@ -5,7 +5,6 @@
 //  Created by Itsuki on 2026/07/05.
 //
 
-import Collections
 import Foundation
 import Yams
 
@@ -24,29 +23,29 @@ public struct DockerCompose: Codable {
 
     /// AI models that are used by the Compose application
     /// https://docs.docker.com/reference/compose-file/models/
-    public var models: OrderedDictionary<String, Model?>?
+    public var models: Dictionary<String, Model?>?
     //    [String: Model?]?
 
     /// Dictionary of service definitions, keyed by service name
-    public var services: OrderedDictionary<String, Service?>
+    public var services: Dictionary<String, Service?>
     //    [String: Service?]
 
     /// Optional top-level volume definitions
-    public var volumes: OrderedDictionary<String, DockerComposeParser.Volume?>?
+    public var volumes: Dictionary<String, DockerComposeParser.Volume?>?
     /// Optional top-level network definitions
     public var networks:
-        OrderedDictionary<String, DockerComposeParser.Network?>?
+        Dictionary<String, DockerComposeParser.Network?>?
     /// Optional top-level config definitions (primarily for Swarm)
-    public var configs: OrderedDictionary<String, DockerComposeParser.Config?>?
+    public var configs: Dictionary<String, DockerComposeParser.Config?>?
     /// Optional top-level secret definitions (primarily for Swarm)
-    public var secrets: OrderedDictionary<String, DockerComposeParser.Secret?>?
+    public var secrets: Dictionary<String, DockerComposeParser.Secret?>?
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(String.self, forKey: .version)
         name = try container.decodeIfPresent(String.self, forKey: .name)
         services = try container.decode(
-            OrderedDictionary<String, Service?>.self,
+            Dictionary<String, Service?>.self,
             forKey: .services
         )
 
@@ -67,25 +66,25 @@ public struct DockerCompose: Codable {
         }
 
         models = try container.decodeIfPresent(
-            OrderedDictionary<String, Model?>.self,
+            Dictionary<String, Model?>.self,
             forKey: .models
         )
 
         volumes = try container.decodeIfPresent(
-            OrderedDictionary<String, Volume?>.self,
+            Dictionary<String, Volume?>.self,
             forKey: .volumes
         )
 
         networks = try container.decodeIfPresent(
-            OrderedDictionary<String, Network?>.self,
+            Dictionary<String, Network?>.self,
             forKey: .networks
         )
         configs = try container.decodeIfPresent(
-            OrderedDictionary<String, Config?>.self,
+            Dictionary<String, Config?>.self,
             forKey: .configs
         )
         secrets = try container.decodeIfPresent(
-            OrderedDictionary<String, Secret?>.self,
+            Dictionary<String, Secret?>.self,
             forKey: .secrets
         )
     }
@@ -159,12 +158,12 @@ public struct DockerCompose: Codable {
 }
 
 
-extension Array where Element == OrderedDictionary<String, Any> {
-    func allKeyUnique() -> Bool {
-        let names: Set<String> = Set(self.flatMap(\.keys))
-        return names.count == self.count
-    }
-}
+//extension Array where Element == Dictionary<String, Any> {
+//    func allKeyUnique() -> Bool {
+//        let names: Set<String> = Set(self.flatMap(\.keys))
+//        return names.count == self.count
+//    }
+//}
 
 public struct ResolvedCompose: Codable {
     public var compose: DockerCompose

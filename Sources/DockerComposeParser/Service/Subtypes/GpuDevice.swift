@@ -12,7 +12,8 @@ extension Service {
         public var count: Int?
         public var device_ids: [String]?
         public var capabilities: [String]?
-        public var options: [String: String]?
+        // optional value to handle reset
+        public var options: [String: String?]?
         
         public var tags: [String: ComposeTag?] = [:]
 

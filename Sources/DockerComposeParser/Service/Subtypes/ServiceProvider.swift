@@ -11,7 +11,8 @@ import Yams
 extension Service {
     public struct Provider: Codable, Hashable {
         public var type: String
-        public var options: [String: String]?
+        // optional value to handle reset
+        public var options: [String: String?]?
         
         public var tags: [String: ComposeTag?] = [:]
 
