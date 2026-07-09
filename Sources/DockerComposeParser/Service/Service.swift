@@ -45,12 +45,9 @@ public struct Service: Codable, Hashable {
     /// Command to execute in the container, overriding the image's default
     public var command: [String]?
 
-    /// Services this service depends on (for startup order)
-    public var depends_on: [String]?
-
     /// Service dependency options keyed by dependency service name.
     // optional value to handle reset
-    public var dependencyConditions: [String: Dependency?]?
+    public var depends_on: [String: Dependency?]?
 
     /// User or UID to run the container as
     public var user: String?
@@ -314,30 +311,6 @@ public struct Service: Codable, Hashable {
 
     public var tags: [String: ComposeTag?] = [:]
 
-    // Defines custom coding keys to map YAML keys to Swift properties
-    // dependedBy not included
-    //    enum CodingKeys: String, CodingKey {
-    //        case image, build, deploy, restart, healthcheck, volumes, environment,
-    //            env_file, ports, command, depends_on, user,
-    //            container_name, labels, networks, hostname, entrypoint, privileged,
-    //            read_only, working_dir, configs, secrets, stdin_open, tty, platform,
-    //            mem_limit, extra_hosts, profiles,
-    //            annotations, attach, blkio_config, cpu_count, cpu_percent,
-    //            cpu_shares, cpu_period, cpu_quota, cpu_rt_runtime,
-    //            cpu_rt_period, cpus, cpuset, cap_add, cap_drop, cgroup,
-    //            cgroup_parent, credential_spec, develop,
-    //            device_cgroup_rules, devices, dns, dns_opt, dns_search, domainname,
-    //            expose, extends, external_links, gpus,
-    //            group_add, `init`, ipc, isolation, label_file, links, logging,
-    //            mac_address, mem_reservation, mem_swappiness,
-    //            memswap_limit, models, network_mode, oom_kill_disable,
-    //            oom_score_adj, pid, pids_limit, post_start, pre_stop,
-    //            provider, pull_policy, runtime, scale, security_opt, shm_size,
-    //            stop_grace_period, stop_signal, storage_opt,
-    //            sysctls, tmpfs, ulimits, use_api_socket, userns_mode, uts,
-    //            volumes_from
-    //    }
-
     /// Public memberwise initializer for testing
     public init(
         image: String? = nil,
@@ -350,8 +323,7 @@ public struct Service: Codable, Hashable {
         env_file: [EnvFileEntry]? = nil,
         ports: [Service.Port]? = nil,
         command: [String]? = nil,
-        depends_on: [String]? = nil,
-        dependencyConditions: [String: Dependency]? = nil,
+        depends_on: [String: Dependency?]? = nil,
         user: String? = nil,
         container_name: String? = nil,
         labels: [String: String]? = nil,
@@ -445,7 +417,6 @@ public struct Service: Codable, Hashable {
         self.ports = ports
         self.command = command
         self.depends_on = depends_on
-        self.dependencyConditions = dependencyConditions
         self.user = user
         self.container_name = container_name
         self.labels = labels
@@ -554,19 +525,7 @@ extension Service {
     public struct EnvFileEntry: Codable, Hashable {
         public var path: String
         public var required: Bool
-
-        public init(from decoder: Decoder) throws {
-            if let s = try? decoder.singleValueContainer().decode(
-                String.self
-            ) {
-                path = s
-                required = true
-            } else {
-                let c = try decoder.container(keyedBy: CodingKeys.self)
-                path = try c.decode(String.self, forKey: .path)
-                required = try c.decode(Bool.self, forKey: .required)
-            }
-        }
+        public var tags: [String: ComposeTag?] = [:]
 
         public init(path: String, required: Bool) {
             self.path = path
@@ -574,54 +533,6 @@ extension Service {
         }
     }
 }
-
-//
-//
-//#Playground {
-//    let base = """
-//      services:
-//        foo:
-//          image: nginx:latest
-//          ports:
-//            - ${HOST_PORT}
-//          environment:
-//            POSTGRES_USER: example
-//            POSTGRES_DB: exampledb
-//          command: ["echo", "foo"]
-//          volumes:
-//            - foo:/work
-//          secrets:
-//            - source: my-token
-//              target: test
-//            - source: my-token2
-//              target: test2
-//
-//    """
-//    let merging = """
-//        services:
-//          foo:
-//            environment:
-//              key2: example
-//            command: ["echo", "bar"]
-//            volumes:
-//              - bar:/work
-//            secrets:
-//              - source: my-token3
-//                target: test2
-//
-//        """
-//
-//    let env = ["HOST_PORT":"8080"]
-//    do {
-//        let decoder = YAMLDecoder()
-//        let base = try decoder.decode(DockerCompose.self, from: base, userInfo: [ .env!: env])
-//        let merging = try decoder.decode(DockerCompose.self, from: merging)
-//        let merged = try base.deepMerge(with: merging)
-//        print(merged.services["foo"]??.ports)
-//    } catch (let error) {
-//        print(error)
-//    }
-//}
 
 extension Service {
     //    ServiceExtends
@@ -710,7 +621,7 @@ extension Service {
             guard !visited.contains(name) else { return }
 
             visiting.insert(name)
-            for depName in serviceTuple.service.depends_on ?? [] {
+            for depName in (serviceTuple.service.depends_on?.map(\.key) ?? []) {
                 try visit(depName, from: name)
             }
             visiting.remove(name)
@@ -768,7 +679,7 @@ extension Service {
                 return
             }
 
-            for dependency in service.depends_on ?? [] {
+            for dependency in (service.depends_on?.map(\.key) ?? []) {
                 include(dependency)
             }
         }
@@ -787,6 +698,9 @@ extension Service.EnvFileEntry: NodeConvertible {
         if let s = try node.string(envs: envs) {
             self.path = s
             self.required = true
+            self.tags[CodingKeys.path.stringValue] = node.composeTag
+            self.tags[CodingKeys.required.stringValue] = node.composeTag
+
             return
         }
 
@@ -814,21 +728,18 @@ extension Service.EnvFileEntry: NodeConvertible {
             )
         }
         self.path = path
+        self.tags[CodingKeys.path.stringValue] = mapping.composeTag(
+            for: CodingKeys.path
+        )
 
-        guard let required = try mapping.value(for: CodingKeys.required).bool
-        else {
-            throw DecodingError.dataCorrupted(
-                .init(
-                    codingPath: [CodingKeys.required],
-                    debugDescription:
-                        "EnvFileEntry entry must have a 'required' specified."
-                )
-            )
-        }
-        self.required = required
+        let required = try? mapping.value(for: CodingKeys.required).bool
+        self.required = required ?? true
+        self.tags[CodingKeys.required.stringValue] = mapping.composeTag(
+            for: CodingKeys.required
+        )
+
     }
 }
-
 extension Service: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
@@ -844,39 +755,53 @@ extension Service: NodeConvertible {
         self.image = try? mapping.value(for: CodingKeys.image).string(
             envs: envs
         )
+        self.tags[CodingKeys.image.stringValue] = mapping.composeTag(
+            for: CodingKeys.image
+        )
+
         self.build = try? Service.Build(
             mapping.value(for: CodingKeys.build),
             envs: envs
         )
+        self.tags[CodingKeys.build.stringValue] = mapping.composeTag(
+            for: CodingKeys.build
+        )
+
         self.deploy = try? Service.Deploy(
             mapping.value(for: CodingKeys.deploy),
             envs: envs
         )
+        self.tags[CodingKeys.deploy.stringValue] = mapping.composeTag(
+            for: CodingKeys.deploy
+        )
 
         self.restart = try? mapping.value(for: CodingKeys.restart).string(
             envs: envs
+        )
+        self.tags[CodingKeys.restart.stringValue] = mapping.composeTag(
+            for: CodingKeys.restart
         )
 
         self.healthcheck = try? Service.Healthcheck(
             mapping.value(for: CodingKeys.healthcheck),
             envs: envs
         )
+        self.tags[CodingKeys.healthcheck.stringValue] = mapping.composeTag(
+            for: CodingKeys.healthcheck
+        )
 
         self.volumes = try? mapping.value(for: CodingKeys.volumes)
             .array(of: Service.Volume.self, envs: envs)
+        self.tags[CodingKeys.volumes.stringValue] = mapping.composeTag(
+            for: CodingKeys.volumes
+        )
 
         // `environment:` accepts a `KEY: VALUE` map or a `KEY=VALUE` list.
-        if let asMap = try? mapping.value(for: CodingKeys.environment)
-            .dictionary(envs: envs)
-        {
-            self.environment = asMap
-        } else if let asList = try? mapping.value(for: CodingKeys.environment)
-            .array(of: String.self, envs: envs), !asList.isEmpty
-        {
-            self.environment = Utility.parseKeyValueList(asList, isEnv: true)
-        } else {
-            self.environment = nil
-        }
+        self.environment = try? mapping.value(for: CodingKeys.environment)
+            .dictionary(envs: envs, isEnv: true)
+        self.tags[CodingKeys.environment.stringValue] = mapping.composeTag(
+            for: CodingKeys.environment
+        )
 
         // `env_file:` accepts a single path string, a list of paths, or a list
         // of {path, required} entries (EnvFileEntry itself handles the bare
@@ -892,65 +817,96 @@ extension Service: NodeConvertible {
         } else {
             self.env_file = nil
         }
+        self.tags[CodingKeys.env_file.stringValue] = mapping.composeTag(
+            for: CodingKeys.env_file
+        )
 
         self.ports = try? mapping.value(for: CodingKeys.ports)
             .array(of: Service.Port.self, envs: envs)
+        self.tags[CodingKeys.ports.stringValue] = mapping.composeTag(
+            for: CodingKeys.ports
+        )
 
         // `command` accepts either a single string or an array of strings.
         if let cmdArray = try? mapping.value(for: CodingKeys.command)
             .array(of: String.self, envs: envs), !cmdArray.isEmpty
         {
             self.command = cmdArray
-        } else if let cmdString = try? mapping.value(for: CodingKeys.command)
-            .string(envs: envs)
-        {
-            self.command = [cmdString]
         } else {
             self.command = nil
         }
+        self.tags[CodingKeys.command.stringValue] = mapping.composeTag(
+            for: CodingKeys.command
+        )
 
         // `depends_on` accepts a single string, a list of strings, or a map of
         // service name -> Dependency options (possibly null).
-        let dependsOnNode = try? mapping.value(for: CodingKeys.depends_on)
-        if let dependsOnString = try? dependsOnNode?.string(envs: envs) {
-            self.depends_on = [dependsOnString]
-            self.dependencyConditions = [dependsOnString: Dependency()]
-        } else if let dependsOnArray = try? dependsOnNode?.array(
-            of: String.self,
-            envs: envs
-        ),
-            !dependsOnArray.isEmpty
-        {
-            self.depends_on = dependsOnArray
-            self.dependencyConditions = Dictionary(
-                uniqueKeysWithValues: dependsOnArray.map { ($0, Dependency()) }
-            )
-        } else if let dependsOnMapping = dependsOnNode?.mapping {
-            var normalized: [String: Dependency] = [:]
-            for (key, valueNode) in dependsOnMapping {
-                guard let keyString = key.string else { continue }
-                if valueNode.null != nil {
-                    normalized[keyString] = Dependency()
-                } else {
-                    normalized[keyString] = try? Dependency(
-                        valueNode,
+        //        let dependsOnNode = try? mapping.value(for: CodingKeys.depends_on)
+        //        if let dependsOnString = try? dependsOnNode?.string(envs: envs) {
+        //            self.depends_on = [dependsOnString]
+        //            self.dependencyConditions = [dependsOnString: Dependency()]
+        //        } else if let dependsOnArray = try? dependsOnNode?.array(
+        //            of: String.self,
+        //            envs: envs
+        //        ),
+        //            !dependsOnArray.isEmpty
+        //        {
+        //            self.depends_on = dependsOnArray
+        //            self.dependencyConditions = Dictionary(
+        //                uniqueKeysWithValues: dependsOnArray.map { ($0, Dependency()) }
+        //            )
+        //        } else if let dependsOnMapping = dependsOnNode?.mapping {
+        //            var normalized: [String: Dependency] = [:]
+        //            for (key, valueNode) in dependsOnMapping {
+        //                guard let keyString = key.string else { continue }
+        //                if valueNode.null != nil {
+        //                    normalized[keyString] = Dependency()
+        //                } else {
+        //                    normalized[keyString] = try? Dependency(
+        //                        valueNode,
+        //                        envs: envs
+        //                    )
+        //                    if normalized[keyString] == nil {
+        //                        normalized[keyString] = Dependency()
+        //                    }
+        //                }
+        //            }
+        //            self.depends_on = normalized.keys.sorted()
+        //            self.dependencyConditions = normalized
+        //        } else {
+        //            self.depends_on = nil
+        //            self.dependencyConditions = nil
+        //        }
+        self.depends_on = try? mapping.value(for: CodingKeys.depends_on)
+            .dictionary(
+                envs: envs,
+                transformMap: { _, node in
+                    return (try? Dependency(
+                        node,
                         envs: envs
+                    )) ?? Dependency()
+                },
+                transformArray: { stringArray in
+                    return stringArray.toDictionary(
+                        valueType: Dependency.self,
+                        makeValue: { _ in Dependency() }
                     )
-                    if normalized[keyString] == nil {
-                        normalized[keyString] = Dependency()
-                    }
                 }
-            }
-            self.depends_on = normalized.keys.sorted()
-            self.dependencyConditions = normalized
-        } else {
-            self.depends_on = nil
-            self.dependencyConditions = nil
-        }
+            )
+        self.tags[CodingKeys.depends_on.stringValue] = mapping.composeTag(
+            for: CodingKeys.depends_on
+        )
 
         self.user = try? mapping.value(for: CodingKeys.user).string(envs: envs)
+        self.tags[CodingKeys.user.stringValue] = mapping.composeTag(
+            for: CodingKeys.user
+        )
+
         self.container_name = try? mapping.value(for: CodingKeys.container_name)
             .string(envs: envs)
+        self.tags[CodingKeys.container_name.stringValue] = mapping.composeTag(
+            for: CodingKeys.container_name
+        )
 
         // labels:
         // com.example.description: "Accounting webapp"
@@ -965,44 +921,54 @@ extension Service: NodeConvertible {
             envs: envs,
             isEnv: false
         )
+        self.tags[CodingKeys.labels.stringValue] = mapping.composeTag(
+            for: CodingKeys.labels
+        )
 
         // `networks` accepts a list of network names, or a map of network name ->
         // Network options (possibly null).
-        let networksNode = try? mapping.value(for: CodingKeys.networks)
-        if let networkArray = try? networksNode?.array(
-            of: String.self,
-            envs: envs
-        ),
-            !networkArray.isEmpty
-        {
-            self.networks = Dictionary(
-                uniqueKeysWithValues: networkArray.map {
-                    ($0, Service.Network())
-                }
-            )
-        } else if let networkMapping = networksNode?.mapping {
-            var normalized: [String: Service.Network] = [:]
-            for (key, valueNode) in networkMapping {
-                guard let keyString = key.string else { continue }
-                if valueNode.null != nil {
-                    normalized[keyString] = Service.Network()
-                } else {
-                    normalized[keyString] = try? Service.Network(
-                        valueNode,
+        // services:
+        // some-service:
+        //   networks:
+        //     - some-network
+        //     - other-network
+        // or
+        // services:
+        // some-service:
+        //   networks:
+        //     some-network:
+        //       aliases:
+        //         - alias1
+        //         - alias3
+        //     other-network:
+        //       aliases:
+        //         - alias2
+        self.networks = try? mapping.value(for: CodingKeys.networks).dictionary(
+            envs: envs,
+            transformMap: { _, value in
+                return
+                    (try? Service.Network(
+                        value,
                         envs: envs
-                    )
-                    if normalized[keyString] == nil {
-                        normalized[keyString] = Service.Network()
-                    }
-                }
+                    )) ?? Service.Network()
+            },
+            transformArray: { stringArray in
+                return stringArray.toDictionary(
+                    valueType: Network?.self,
+                    makeValue: { _ in Service.Network() }
+                )
+
             }
-            self.networks = normalized
-        } else {
-            self.networks = nil
-        }
+        )
+        self.tags[CodingKeys.networks.stringValue] = mapping.composeTag(
+            for: CodingKeys.networks
+        )
 
         self.hostname = try? mapping.value(for: CodingKeys.hostname).string(
             envs: envs
+        )
+        self.tags[CodingKeys.hostname.stringValue] = mapping.composeTag(
+            for: CodingKeys.hostname
         )
 
         // `entrypoint` accepts either a single string or an array of strings.
@@ -1010,34 +976,64 @@ extension Service: NodeConvertible {
             .array(of: String.self, envs: envs), !entrypointArray.isEmpty
         {
             self.entrypoint = entrypointArray
-        } else if let entrypointString = try? mapping.value(
-            for: CodingKeys.entrypoint
-        )
-        .string(envs: envs) {
-            self.entrypoint = [entrypointString]
         } else {
             self.entrypoint = nil
         }
+        self.tags[CodingKeys.entrypoint.stringValue] = mapping.composeTag(
+            for: CodingKeys.entrypoint
+        )
 
         self.privileged = try? mapping.value(for: CodingKeys.privileged).bool
+        self.tags[CodingKeys.privileged.stringValue] = mapping.composeTag(
+            for: CodingKeys.privileged
+        )
+
         self.read_only = try? mapping.value(for: CodingKeys.read_only).bool
+        self.tags[CodingKeys.read_only.stringValue] = mapping.composeTag(
+            for: CodingKeys.read_only
+        )
+
         self.working_dir = try? mapping.value(for: CodingKeys.working_dir)
             .string(envs: envs)
+        self.tags[CodingKeys.working_dir.stringValue] = mapping.composeTag(
+            for: CodingKeys.working_dir
+        )
+
         self.platform = try? mapping.value(for: CodingKeys.platform).string(
             envs: envs
+        )
+        self.tags[CodingKeys.platform.stringValue] = mapping.composeTag(
+            for: CodingKeys.platform
         )
 
         self.configs = try? mapping.value(for: CodingKeys.configs)
             .array(of: Service.Config.self, envs: envs)
+        self.tags[CodingKeys.configs.stringValue] = mapping.composeTag(
+            for: CodingKeys.configs
+        )
+
         self.secrets = try? mapping.value(for: CodingKeys.secrets)
             .array(of: Service.Secret.self, envs: envs)
+        self.tags[CodingKeys.secrets.stringValue] = mapping.composeTag(
+            for: CodingKeys.secrets
+        )
 
         self.stdin_open = try? mapping.value(for: CodingKeys.stdin_open).bool
+        self.tags[CodingKeys.stdin_open.stringValue] = mapping.composeTag(
+            for: CodingKeys.stdin_open
+        )
+
         self.tty = try? mapping.value(for: CodingKeys.tty).bool
+        self.tags[CodingKeys.tty.stringValue] = mapping.composeTag(
+            for: CodingKeys.tty
+        )
 
         // `mem_limit` accepts a string or a bare int.
         self.mem_limit = try? mapping.value(for: CodingKeys.mem_limit).string(
             envs: envs
+        )
+        self.tags[CodingKeys.mem_limit.stringValue] = mapping.composeTag(
+            for: CodingKeys.mem_limit
         )
 
         // `extra_hosts` accepts a list of "hostname:IP" strings or a
@@ -1052,48 +1048,80 @@ extension Service: NodeConvertible {
         } else {
             self.extra_hosts = nil
         }
+        self.tags[CodingKeys.extra_hosts.stringValue] = mapping.composeTag(
+            for: CodingKeys.extra_hosts
+        )
 
         self.profiles = try? mapping.value(for: CodingKeys.profiles)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.profiles.stringValue] = mapping.composeTag(
+            for: CodingKeys.profiles
+        )
 
         // `annotations` accepts a map or a `key=value` list.
-        if let asMap = try? mapping.value(for: CodingKeys.annotations)
+        self.annotations = try? mapping.value(for: CodingKeys.annotations)
             .dictionary(envs: envs)
-        {
-            self.annotations = asMap
-        } else if let asList = try? mapping.value(for: CodingKeys.annotations)
-            .array(of: String.self, envs: envs), !asList.isEmpty
-        {
-            self.annotations = Utility.parseKeyValueList(asList, isEnv: false)
-        } else {
-            self.annotations = nil
-        }
+        self.tags[CodingKeys.annotations.stringValue] = mapping.composeTag(
+            for: CodingKeys.annotations
+        )
 
         self.attach = try? mapping.value(for: CodingKeys.attach).bool
+        self.tags[CodingKeys.attach.stringValue] = mapping.composeTag(
+            for: CodingKeys.attach
+        )
 
         self.blkio_config = try? Service.BlkioConfig(
             mapping.value(for: CodingKeys.blkio_config),
             envs: envs
         )
+        self.tags[CodingKeys.blkio_config.stringValue] = mapping.composeTag(
+            for: CodingKeys.blkio_config
+        )
 
         self.cpu_count = try? mapping.value(for: CodingKeys.cpu_count).int(
             envs: envs
         )
+        self.tags[CodingKeys.cpu_count.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpu_count
+        )
+
         self.cpu_percent = try? mapping.value(for: CodingKeys.cpu_percent).float
+        self.tags[CodingKeys.cpu_percent.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpu_percent
+        )
+
         self.cpu_shares = try? mapping.value(for: CodingKeys.cpu_shares).int(
             envs: envs
+        )
+        self.tags[CodingKeys.cpu_shares.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpu_shares
         )
 
         self.cpu_period = try? mapping.value(for: CodingKeys.cpu_period).string(
             envs: envs
         )
+        self.tags[CodingKeys.cpu_period.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpu_period
+        )
+
         self.cpu_quota = try? mapping.value(for: CodingKeys.cpu_quota).string(
             envs: envs
         )
+        self.tags[CodingKeys.cpu_quota.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpu_quota
+        )
+
         self.cpu_rt_runtime = try? mapping.value(for: CodingKeys.cpu_rt_runtime)
             .string(envs: envs)
+        self.tags[CodingKeys.cpu_rt_runtime.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpu_rt_runtime
+        )
+
         self.cpu_rt_period = try? mapping.value(for: CodingKeys.cpu_rt_period)
             .string(envs: envs)
+        self.tags[CodingKeys.cpu_rt_period.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpu_rt_period
+        )
 
         // `cpus` accepts a Double or a numeric string.
         if let d = try? mapping.value(for: CodingKeys.cpus).float {
@@ -1105,97 +1133,195 @@ extension Service: NodeConvertible {
         } else {
             self.cpus = nil
         }
+        self.tags[CodingKeys.cpus.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpus
+        )
 
         self.cpuset = try? mapping.value(for: CodingKeys.cpuset).string(
             envs: envs
         )
+        self.tags[CodingKeys.cpuset.stringValue] = mapping.composeTag(
+            for: CodingKeys.cpuset
+        )
 
         self.cap_add = try? mapping.value(for: CodingKeys.cap_add)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.cap_add.stringValue] = mapping.composeTag(
+            for: CodingKeys.cap_add
+        )
+
         self.cap_drop = try? mapping.value(for: CodingKeys.cap_drop)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.cap_drop.stringValue] = mapping.composeTag(
+            for: CodingKeys.cap_drop
+        )
 
         self.cgroup = try? mapping.value(for: CodingKeys.cgroup).string(
             envs: envs
         )
+        self.tags[CodingKeys.cgroup.stringValue] = mapping.composeTag(
+            for: CodingKeys.cgroup
+        )
+
         self.cgroup_parent = try? mapping.value(for: CodingKeys.cgroup_parent)
             .string(envs: envs)
+        self.tags[CodingKeys.cgroup_parent.stringValue] = mapping.composeTag(
+            for: CodingKeys.cgroup_parent
+        )
 
         self.credential_spec = try? Service.CredentialSpec(
             mapping.value(for: CodingKeys.credential_spec),
             envs: envs
+        )
+        self.tags[CodingKeys.credential_spec.stringValue] = mapping.composeTag(
+            for: CodingKeys.credential_spec
         )
 
         self.develop = try? Service.Develop(
             mapping.value(for: CodingKeys.develop),
             envs: envs
         )
+        self.tags[CodingKeys.develop.stringValue] = mapping.composeTag(
+            for: CodingKeys.develop
+        )
 
         self.device_cgroup_rules = try? mapping.value(
             for: CodingKeys.device_cgroup_rules
         )
         .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.device_cgroup_rules.stringValue] =
+            mapping.composeTag(for: CodingKeys.device_cgroup_rules)
+
         self.devices = try? mapping.value(for: CodingKeys.devices)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.devices.stringValue] = mapping.composeTag(
+            for: CodingKeys.devices
+        )
 
         self.dns = try? mapping.value(for: CodingKeys.dns).array(envs: envs)
+        self.tags[CodingKeys.dns.stringValue] = mapping.composeTag(
+            for: CodingKeys.dns
+        )
 
         self.dns_opt = try? mapping.value(for: CodingKeys.dns_opt)
             .array(of: String.self, envs: envs)
-        self.dns_search = try? mapping.value(for: CodingKeys.dns_search).array(envs: envs)
+        self.tags[CodingKeys.dns_opt.stringValue] = mapping.composeTag(
+            for: CodingKeys.dns_opt
+        )
+
+        self.dns_search = try? mapping.value(for: CodingKeys.dns_search).array(
+            envs: envs
+        )
+        self.tags[CodingKeys.dns_search.stringValue] = mapping.composeTag(
+            for: CodingKeys.dns_search
+        )
 
         self.domainname = try? mapping.value(for: CodingKeys.domainname).string(
             envs: envs
+        )
+        self.tags[CodingKeys.domainname.stringValue] = mapping.composeTag(
+            for: CodingKeys.domainname
         )
 
         // `expose` entries may be bare port numbers or quoted strings.
         self.expose = try? mapping.value(for: CodingKeys.expose)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.expose.stringValue] = mapping.composeTag(
+            for: CodingKeys.expose
+        )
 
         self.extends = try? Service.ServiceExtends(
             mapping.value(for: CodingKeys.extends),
             envs: envs
         )
+        self.tags[CodingKeys.extends.stringValue] = mapping.composeTag(
+            for: CodingKeys.extends
+        )
+
         self.external_links = try? mapping.value(for: CodingKeys.external_links)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.external_links.stringValue] = mapping.composeTag(
+            for: CodingKeys.external_links
+        )
 
         self.gpus = try? Service.GPU(
             mapping.value(for: CodingKeys.gpus),
             envs: envs
         )
+        self.tags[CodingKeys.gpus.stringValue] = mapping.composeTag(
+            for: CodingKeys.gpus
+        )
 
         self.group_add = try? mapping.value(for: CodingKeys.group_add)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.group_add.stringValue] = mapping.composeTag(
+            for: CodingKeys.group_add
+        )
 
         self.`init` = try? mapping.value(for: CodingKeys.`init`).bool
+        self.tags[CodingKeys.`init`.stringValue] = mapping.composeTag(
+            for: CodingKeys.`init`
+        )
 
         self.ipc = try? mapping.value(for: CodingKeys.ipc).string(envs: envs)
+        self.tags[CodingKeys.ipc.stringValue] = mapping.composeTag(
+            for: CodingKeys.ipc
+        )
+
         self.isolation = try? mapping.value(for: CodingKeys.isolation).string(
             envs: envs
         )
+        self.tags[CodingKeys.isolation.stringValue] = mapping.composeTag(
+            for: CodingKeys.isolation
+        )
 
-        self.label_file = try? mapping.value(for: CodingKeys.label_file).array(envs: envs)
+        self.label_file = try? mapping.value(for: CodingKeys.label_file).array(
+            envs: envs
+        )
+        self.tags[CodingKeys.label_file.stringValue] = mapping.composeTag(
+            for: CodingKeys.label_file
+        )
 
         self.links = try? mapping.value(for: CodingKeys.links)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.links.stringValue] = mapping.composeTag(
+            for: CodingKeys.links
+        )
 
         self.logging = try? Service.Logging(
             mapping.value(for: CodingKeys.logging),
             envs: envs
         )
+        self.tags[CodingKeys.logging.stringValue] = mapping.composeTag(
+            for: CodingKeys.logging
+        )
 
         self.mac_address = try? mapping.value(for: CodingKeys.mac_address)
             .string(envs: envs)
+        self.tags[CodingKeys.mac_address.stringValue] = mapping.composeTag(
+            for: CodingKeys.mac_address
+        )
+
         self.mem_reservation = try? mapping.value(
             for: CodingKeys.mem_reservation
         )
         .string(envs: envs)
+        self.tags[CodingKeys.mem_reservation.stringValue] = mapping.composeTag(
+            for: CodingKeys.mem_reservation
+        )
+
         self.mem_swappiness = try? mapping.value(for: CodingKeys.mem_swappiness)
             .int(envs: envs)
+        self.tags[CodingKeys.mem_swappiness.stringValue] = mapping.composeTag(
+            for: CodingKeys.mem_swappiness
+        )
 
         // `memswap_limit` accepts a string or a bare int.
         self.memswap_limit = try? mapping.value(for: CodingKeys.memswap_limit)
             .string(envs: envs)
+        self.tags[CodingKeys.memswap_limit.stringValue] = mapping.composeTag(
+            for: CodingKeys.memswap_limit
+        )
 
         // `models` accepts a list of model names, or a map of model name ->
         // Model options (possibly null).
@@ -1213,78 +1339,147 @@ extension Service: NodeConvertible {
         //        endpoint_var: MODEL_URL
         //        model_var: MODEL
 
-        self.models = try? mapping.value(for: CodingKeys.models).dictionary(envs: envs, transformMap: { _, node in
-            return try? Service.Model(
-                node,
-                envs: envs
-            )
-        }, transformArray: { stringArray in
-            return stringArray.toDictionary(
-                valueType: Model?.self,
-                makeValue: { _ in nil }
-            )
-        })
+        self.models = try? mapping.value(for: CodingKeys.models).dictionary(
+            envs: envs,
+            transformMap: { _, node in
+                return try? Service.Model(
+                    node,
+                    envs: envs
+                )
+            },
+            transformArray: { stringArray in
+                return stringArray.toDictionary(
+                    valueType: Model?.self,
+                    makeValue: { _ in nil }
+                )
+            }
+        )
+        self.tags[CodingKeys.models.stringValue] = mapping.composeTag(
+            for: CodingKeys.models
+        )
 
         self.network_mode = try? mapping.value(for: CodingKeys.network_mode)
             .string(envs: envs)
+        self.tags[CodingKeys.network_mode.stringValue] = mapping.composeTag(
+            for: CodingKeys.network_mode
+        )
+
         self.oom_kill_disable = try? mapping.value(
             for: CodingKeys.oom_kill_disable
         ).bool
+        self.tags[CodingKeys.oom_kill_disable.stringValue] = mapping.composeTag(
+            for: CodingKeys.oom_kill_disable
+        )
+
         self.oom_score_adj = try? mapping.value(for: CodingKeys.oom_score_adj)
             .int(envs: envs)
+        self.tags[CodingKeys.oom_score_adj.stringValue] = mapping.composeTag(
+            for: CodingKeys.oom_score_adj
+        )
 
         self.pid = try? mapping.value(for: CodingKeys.pid).string(envs: envs)
+        self.tags[CodingKeys.pid.stringValue] = mapping.composeTag(
+            for: CodingKeys.pid
+        )
+
         self.pids_limit = try? mapping.value(for: CodingKeys.pids_limit).int(
             envs: envs
+        )
+        self.tags[CodingKeys.pids_limit.stringValue] = mapping.composeTag(
+            for: CodingKeys.pids_limit
         )
 
         self.post_start = try? mapping.value(for: CodingKeys.post_start)
             .array(of: Service.Hook.self, envs: envs)
+        self.tags[CodingKeys.post_start.stringValue] = mapping.composeTag(
+            for: CodingKeys.post_start
+        )
+
         self.pre_stop = try? mapping.value(for: CodingKeys.pre_stop)
             .array(of: Service.Hook.self, envs: envs)
+        self.tags[CodingKeys.pre_stop.stringValue] = mapping.composeTag(
+            for: CodingKeys.pre_stop
+        )
 
         self.provider = try? Service.Provider(
             mapping.value(for: CodingKeys.provider),
             envs: envs
         )
+        self.tags[CodingKeys.provider.stringValue] = mapping.composeTag(
+            for: CodingKeys.provider
+        )
 
         self.pull_policy = try? mapping.value(for: CodingKeys.pull_policy)
             .string(envs: envs)
+        self.tags[CodingKeys.pull_policy.stringValue] = mapping.composeTag(
+            for: CodingKeys.pull_policy
+        )
+
         self.runtime = try? mapping.value(for: CodingKeys.runtime).string(
             envs: envs
         )
+        self.tags[CodingKeys.runtime.stringValue] = mapping.composeTag(
+            for: CodingKeys.runtime
+        )
+
         self.scale = try? mapping.value(for: CodingKeys.scale).int(envs: envs)
+        self.tags[CodingKeys.scale.stringValue] = mapping.composeTag(
+            for: CodingKeys.scale
+        )
 
         self.security_opt = try? mapping.value(for: CodingKeys.security_opt)
             .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.security_opt.stringValue] = mapping.composeTag(
+            for: CodingKeys.security_opt
+        )
 
         // `shm_size` accepts a string or a bare int.
         self.shm_size = try? mapping.value(for: CodingKeys.shm_size).string(
             envs: envs
         )
+        self.tags[CodingKeys.shm_size.stringValue] = mapping.composeTag(
+            for: CodingKeys.shm_size
+        )
 
         self.stop_grace_period = try? mapping.value(
             for: CodingKeys.stop_grace_period
         ).string(envs: envs)
+        self.tags[CodingKeys.stop_grace_period.stringValue] =
+            mapping.composeTag(
+                for: CodingKeys.stop_grace_period
+            )
+
         self.stop_signal = try? mapping.value(for: CodingKeys.stop_signal)
             .string(envs: envs)
+        self.tags[CodingKeys.stop_signal.stringValue] = mapping.composeTag(
+            for: CodingKeys.stop_signal
+        )
 
         self.storage_opt = try? mapping.value(for: CodingKeys.storage_opt)
             .dictionary(envs: envs)
+        self.tags[CodingKeys.storage_opt.stringValue] = mapping.composeTag(
+            for: CodingKeys.storage_opt
+        )
 
         // `sysctls` accepts a map or a `key=value` list.
         self.sysctls = try? mapping.value(for: CodingKeys.sysctls).dictionary(
             envs: envs,
             isEnv: false
         )
+        self.tags[CodingKeys.sysctls.stringValue] = mapping.composeTag(
+            for: CodingKeys.sysctls
+        )
 
         self.tmpfs = try? mapping.value(for: CodingKeys.tmpfs).array(envs: envs)
+        self.tags[CodingKeys.tmpfs.stringValue] = mapping.composeTag(
+            for: CodingKeys.tmpfs
+        )
 
         // `ulimits` is a map of ulimit name -> Ulimit (int or {soft, hard}).
-        self.ulimits = try? mapping.value(for: CodingKeys.tmpfs).dictionary(
+        self.ulimits = try? mapping.value(for: CodingKeys.ulimits).dictionary(
             envs: envs,
             transformMap: { key, value in
-                try Ulimit(value, envs: envs)
+                return try Ulimit(value, envs: envs)
             },
             transformArray: { stringArray in
                 throw DecodingError.dataCorrupted(
@@ -1296,61 +1491,36 @@ extension Service: NodeConvertible {
                 )
             }
         )
-
+        self.tags[CodingKeys.ulimits.stringValue] = mapping.composeTag(
+            for: CodingKeys.ulimits
+        )
 
         self.use_api_socket = try? mapping.value(for: CodingKeys.use_api_socket)
             .bool
+        self.tags[CodingKeys.use_api_socket.stringValue] = mapping.composeTag(
+            for: CodingKeys.use_api_socket
+        )
+
         self.userns_mode = try? mapping.value(for: CodingKeys.userns_mode)
             .string(envs: envs)
+        self.tags[CodingKeys.userns_mode.stringValue] = mapping.composeTag(
+            for: CodingKeys.userns_mode
+        )
+
         self.uts = try? mapping.value(for: CodingKeys.uts).string(envs: envs)
+        self.tags[CodingKeys.uts.stringValue] = mapping.composeTag(
+            for: CodingKeys.uts
+        )
 
         self.volumes_from = try? mapping.value(for: CodingKeys.volumes_from)
             .array(of: String.self, envs: envs)
-
-        self.dependedBy = []
+        self.tags[CodingKeys.volumes_from.stringValue] = mapping.composeTag(
+            for: CodingKeys.volumes_from
+        )
     }
-
-    //    private func decodeStringOrList(
-    //        _ mapping: Node.Mapping,
-    //        forKey key: CodingKeys,
-    //        envs: [String: String]
-    //    ) throws -> [String]? {
-    //        if let asList = try? mapping.value(for: key).array(
-    //            of: String.self,
-    //            envs: envs
-    //        ),
-    //            !asList.isEmpty
-    //        {
-    //            return asList
-    //        } else if let asString = try? mapping.value(for: key).string(envs: envs)
-    //        {
-    //            return [asString]
-    //        } else {
-    //            return nil
-    //        }
-    //    }
-    //
-    //    private func decodeMapOrList(
-    //        _ mapping: Node.Mapping,
-    //        forKey key: CodingKeys,
-    //        envs: [String: String],
-    //        isEnv: Bool
-    //    ) throws -> [String: String]? {
-    //        if let asMap = try? mapping.value(for: key).dictionary(envs: envs) {
-    //            return asMap
-    //        } else if let asList = try? mapping.value(for: key)
-    //            .array(of: String.self, envs: envs), !asList.isEmpty
-    //        {
-    //            return Utility.parseKeyValueList(asList, isEnv: isEnv)
-    //        } else {
-    //            return nil
-    //        }
-    //    }
-
 }
 
 extension Array {
-    //    let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
     func toDictionary<T>(
         valueType: T.Type = T.self,
         makeValue: @escaping (Element) -> T
@@ -1359,57 +1529,4 @@ extension Array {
     {
         Dictionary(uniqueKeysWithValues: self.map { ($0, makeValue($0)) })
     }
-
 }
-
-//#Playground {
-//    let yaml = """
-//        services:
-//          web:
-//            image: nginx:latest
-//            ports:
-//              - "8080:80"
-//              - 80
-//            env_file:
-//              - path: ./default.env
-//                required: true # default
-//              - path: ./override.env
-//                required: false
-//          db:
-//            image: postgres:18
-//            environment:
-//              POSTGRES_USER: example
-//              POSTGRES_DB: exampledb
-//
-//        """
-//
-//        do {
-//            let nodes = try Yams.compose_all(yaml: yaml)
-//            //        print(nodes.count(where: {_ in true}))
-//            for node in nodes {
-//                if let pairs = node.mapping {
-//                    for pair in pairs {
-//                        if pair.key == "services" {
-//                            let map = pair.value.mapping!
-//                            for (key, value) in map {
-//                                print("key",  key)
-//                                let service = try Service(value, envs: [:])
-//                                print(service.image, service.ports, service.environment, service.env_file)
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        } catch (let error) {
-//            print(error)
-//        }
-//
-////    do {
-////
-////        let decoder = YAMLDecoder()
-////        let compose = try decoder.decode(DockerCompose.self, from: string)
-////        print(compose.services["web"]??.env_file)
-////    } catch (let error) {
-////        print(error)
-////    }
-//}

@@ -65,7 +65,7 @@ extension Node {
     )
         throws -> [String]
     {
-        if !array(of: String.self).isEmpty {
+        if self.sequence != nil {
             return try self.array(of: String.self).map({
                 try Utility.resolveVariable($0, with: envs)
             })

@@ -5,6 +5,8 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Yams
+
 /// Represents a service's usage of a secret.
 extension Service {
     public struct Secret: Codable, Hashable {
@@ -22,44 +24,8 @@ extension Service {
 
         /// Permissions mode for the mounted secret file
         public var mode: Int?
-        
-        public var tags: [String: ComposeTag?] = [:]
 
-        /// Custom initializer to handle `secret_name` (string) or `{ source: secret_name, target: /path }` (object).
-        public init(from decoder: Decoder) throws {
-            let container = try decoder.singleValueContainer()
-            if let sourceName = try? container.decode(String.self) {
-                self.source = sourceName
-                self.target = nil
-                self.uid = nil
-                self.gid = nil
-                self.mode = nil
-            } else {
-                let keyedContainer = try decoder.container(
-                    keyedBy: CodingKeys.self
-                )
-                self.source = try keyedContainer.decode(
-                    String.self,
-                    forKey: .source
-                )
-                self.target = try keyedContainer.decodeIfPresent(
-                    String.self,
-                    forKey: .target
-                )
-                self.uid = try keyedContainer.decodeIfPresent(
-                    String.self,
-                    forKey: .uid
-                )
-                self.gid = try keyedContainer.decodeIfPresent(
-                    String.self,
-                    forKey: .gid
-                )
-                self.mode = try keyedContainer.decodeIfPresent(
-                    Int.self,
-                    forKey: .mode
-                )
-            }
-        }
+        public var tags: [String: ComposeTag?] = [:]
 
         public init(
             source: String,
@@ -109,7 +75,6 @@ extension Array where Element == Service.Secret {
         return result
     }
 }
-import Yams
 
 // MARK: - ServiceSecret.swift
 
@@ -120,6 +85,7 @@ extension Service.Secret: NodeConvertible {
     public init(_ node: Node, envs: [String: String]) throws {
         if let sourceName = try node.string(envs: envs) {
             self.source = sourceName
+            self.tags[CodingKeys.source.stringValue] = node.composeTag
             self.target = nil
             self.uid = nil
             self.gid = nil
@@ -131,24 +97,50 @@ extension Service.Secret: NodeConvertible {
             throw DecodingError.dataCorrupted(
                 .init(
                     codingPath: [],
-                    debugDescription: "Invalid yaml data. Expected a string or a mapping."
+                    debugDescription:
+                        "Invalid yaml data. Expected a string or a mapping."
                 )
             )
         }
 
-        guard let source = try mapping.value(for: CodingKeys.source).string(envs: envs) else {
+        guard
+            let source = try mapping.value(for: CodingKeys.source).string(
+                envs: envs
+            )
+        else {
             throw DecodingError.dataCorrupted(
                 .init(
                     codingPath: [CodingKeys.source],
-                    debugDescription: "Secret entry must have a 'source' specified."
+                    debugDescription:
+                        "Secret entry must have a 'source' specified."
                 )
             )
         }
         self.source = source
+        self.tags[CodingKeys.source.stringValue] = mapping.composeTag(
+            for: CodingKeys.source
+        )
 
-        self.target = try? mapping.value(for: CodingKeys.target).string(envs: envs)
+        self.target = try? mapping.value(for: CodingKeys.target).string(
+            envs: envs
+        )
+        self.tags[CodingKeys.target.stringValue] = mapping.composeTag(
+            for: CodingKeys.target
+        )
+
         self.uid = try? mapping.value(for: CodingKeys.uid).string(envs: envs)
+        self.tags[CodingKeys.uid.stringValue] = mapping.composeTag(
+            for: CodingKeys.uid
+        )
+
         self.gid = try? mapping.value(for: CodingKeys.gid).string(envs: envs)
+        self.tags[CodingKeys.gid.stringValue] = mapping.composeTag(
+            for: CodingKeys.gid
+        )
+
         self.mode = try? mapping.value(for: CodingKeys.mode).int(envs: envs)
+        self.tags[CodingKeys.mode.stringValue] = mapping.composeTag(
+            for: CodingKeys.mode
+        )
     }
 }

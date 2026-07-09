@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Yams
 
 /// Healthcheck configuration for a service.
 extension Service {
@@ -33,7 +34,7 @@ extension Service {
         public var retries: Int?
         /// Timeout for each check
         public var timeout: String?
-        
+
         public var tags: [String: ComposeTag?] = [:]
 
         public init(
@@ -140,8 +141,6 @@ extension Service {
     }
 }
 
-
-import Yams
 extension Service.Healthcheck: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
@@ -157,22 +156,60 @@ extension Service.Healthcheck: NodeConvertible {
         // `test` accepts either a list of strings or a single string, the
         // latter is wrapped as `["CMD-SHELL", testString]`, same as the
         // decoder-based init.
-        if let testArray = try? mapping.value(for: CodingKeys.test)
-            .array(of: String.self, envs: envs), !testArray.isEmpty
-        {
-            self.test = testArray
-        } else if let testString = try? mapping.value(for: CodingKeys.test)
+        // string first because .array(of:) will also resolve string to array
+        // and we need to distinguish between test: ["NONE"] vs test: "NONE"
+        if let testString = try? mapping.value(for: CodingKeys.test)
             .string(envs: envs)
         {
+            // If it's a string, it's equivalent to specifying CMD-SHELL followed by that string.
             self.test = ["CMD-SHELL", testString]
+        } else if let testArray = try? mapping.value(for: CodingKeys.test)
+            .array(of: String.self, envs: envs), !testArray.isEmpty
+        {
+            //  If it's a list, the first item must be either NONE, CMD or CMD-SHELL.
+            if !["CMD-SHELL", "CMD", "NONE"].contains(testArray.first) {
+                throw DecodingError.dataCorrupted(
+                    .init(
+                        codingPath: [CodingKeys.test],
+                        debugDescription:
+                            "Invalid compose yaml. test when declared as an array must start with CMD-SHELL, CMD or NONE."
+                    )
+                )
+            }
+            self.test = testArray
         } else {
             self.test = nil
         }
+        self.tags[CodingKeys.test.stringValue] = mapping.composeTag(
+            for: CodingKeys.test
+        )
 
         self.start_period = try? mapping.value(for: CodingKeys.start_period)
             .string(envs: envs)
-        self.interval = try? mapping.value(for: CodingKeys.interval).string(envs: envs)
-        self.retries = try? mapping.value(for: CodingKeys.retries).int(envs: envs)
-        self.timeout = try? mapping.value(for: CodingKeys.timeout).string(envs: envs)
+        self.tags[CodingKeys.start_period.stringValue] = mapping.composeTag(
+            for: CodingKeys.start_period
+        )
+
+        self.interval = try? mapping.value(for: CodingKeys.interval).string(
+            envs: envs
+        )
+        self.tags[CodingKeys.interval.stringValue] = mapping.composeTag(
+            for: CodingKeys.interval
+        )
+
+        self.retries = try? mapping.value(for: CodingKeys.retries).int(
+            envs: envs
+        )
+        self.tags[CodingKeys.retries.stringValue] = mapping.composeTag(
+            for: CodingKeys.retries
+        )
+
+        self.timeout = try? mapping.value(for: CodingKeys.timeout).string(
+            envs: envs
+        )
+        self.tags[CodingKeys.timeout.stringValue] = mapping.composeTag(
+            for: CodingKeys.timeout
+        )
+
     }
 }

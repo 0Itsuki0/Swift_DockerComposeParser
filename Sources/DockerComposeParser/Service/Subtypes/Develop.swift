@@ -5,11 +5,13 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Yams
+
 /// Development-time configuration for keeping a container in sync with source (`develop`).
 extension Service {
     public struct Develop: Codable, Hashable {
         public var watch: [DevelopWatchItem]?
-        
+
         public var tags: [String: ComposeTag?] = [:]
 
         public init(watch: [DevelopWatchItem]? = nil) {
@@ -17,8 +19,6 @@ extension Service {
         }
     }
 }
-
-import Yams
 
 extension Service.Develop: NodeConvertible {
 
@@ -34,5 +34,8 @@ extension Service.Develop: NodeConvertible {
 
         self.watch = try? mapping.value(for: CodingKeys.watch)
             .array(of: Service.DevelopWatchItem.self, envs: envs)
+        self.tags[CodingKeys.watch.stringValue] = mapping.composeTag(
+            for: CodingKeys.watch
+        )
     }
 }

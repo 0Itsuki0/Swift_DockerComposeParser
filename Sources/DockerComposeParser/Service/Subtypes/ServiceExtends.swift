@@ -5,31 +5,22 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Yams
+
 /// Reference to a base service definition to merge with (`extends`).
 extension Service {
     public struct ServiceExtends: Codable, Hashable {
         public var service: String
         public var file: String?
-        
+
         public var tags: [String: ComposeTag?] = [:]
 
         public init(service: String, file: String? = nil) {
             self.service = service
             self.file = file
         }
-
-        public init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.service = try container.decode(String.self, forKey: .service)
-            self.file = try container.decodeIfPresent(
-                String.self,
-                forKey: .file
-            )
-        }
     }
 }
-
-import Yams
 
 extension Service.ServiceExtends: NodeConvertible {
 
@@ -43,16 +34,27 @@ extension Service.ServiceExtends: NodeConvertible {
             )
         }
 
-        guard let service = try mapping.value(for: CodingKeys.service).string(envs: envs) else {
+        guard
+            let service = try mapping.value(for: CodingKeys.service).string(
+                envs: envs
+            )
+        else {
             throw DecodingError.dataCorrupted(
                 .init(
                     codingPath: [CodingKeys.service],
-                    debugDescription: "ServiceExtends entry must have a 'service' specified."
+                    debugDescription:
+                        "ServiceExtends entry must have a 'service' specified."
                 )
             )
         }
         self.service = service
+        self.tags[CodingKeys.service.stringValue] = mapping.composeTag(
+            for: CodingKeys.service
+        )
 
         self.file = try? mapping.value(for: CodingKeys.file).string(envs: envs)
+        self.tags[CodingKeys.file.stringValue] = mapping.composeTag(
+            for: CodingKeys.file
+        )
     }
 }

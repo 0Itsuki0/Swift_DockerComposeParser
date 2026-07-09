@@ -5,6 +5,8 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Yams
+
 extension Service {
     public struct Hook: Codable, Hashable {
         public var command: [String]?
@@ -12,9 +14,9 @@ extension Service {
         public var privileged: Bool?
         // optional value to handle reset
         public var environment: [String: String?]?
-        
+
         public var tags: [String: ComposeTag?] = [:]
-        
+
         public init(
             command: [String]? = nil,
             user: String? = nil,
@@ -28,8 +30,6 @@ extension Service {
         }
     }
 }
-
-import Yams
 
 extension Service.Hook: NodeConvertible {
 
@@ -48,29 +48,29 @@ extension Service.Hook: NodeConvertible {
             .array(of: String.self, envs: envs), !commandArray.isEmpty
         {
             self.command = commandArray
-        } else if let commandString = try? mapping.value(for: CodingKeys.command)
-            .string(envs: envs)
-        {
-            self.command = [commandString]
         } else {
             self.command = nil
         }
+        self.tags[CodingKeys.command.stringValue] = mapping.composeTag(
+            for: CodingKeys.command
+        )
 
         self.user = try? mapping.value(for: CodingKeys.user).string(envs: envs)
+        self.tags[CodingKeys.user.stringValue] = mapping.composeTag(
+            for: CodingKeys.user
+        )
+
         self.privileged = try? mapping.value(for: CodingKeys.privileged).bool
+        self.tags[CodingKeys.privileged.stringValue] = mapping.composeTag(
+            for: CodingKeys.privileged
+        )
 
         // `environment` accepts either a `KEY: VALUE` mapping or a list of
         // `KEY=VALUE` strings, same as the decoder-based init.
-        if let asMap = try? mapping.value(for: CodingKeys.environment)
-            .dictionary(envs: envs)
-        {
-            self.environment = asMap
-        } else if let asList = try? mapping.value(for: CodingKeys.environment)
-            .array(of: String.self, envs: envs), !asList.isEmpty
-        {
-            self.environment = Utility.parseKeyValueList(asList, isEnv: false)
-        } else {
-            self.environment = nil
-        }
+        self.environment = try? mapping.value(for: CodingKeys.environment)
+            .dictionary(envs: envs, isEnv: true)
+        self.tags[CodingKeys.environment.stringValue] = mapping.composeTag(
+            for: CodingKeys.environment
+        )
     }
 }

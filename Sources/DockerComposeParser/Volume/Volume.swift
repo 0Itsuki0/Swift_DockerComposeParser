@@ -39,23 +39,6 @@ public struct Volume: Codable, Hashable {
 
     public var tags: [String: ComposeTag?] = [:]
 
-    /// Custom initializer to handle `external: true` (boolean) or `external: { name: "my_vol" }` (object).
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        driver = try container.decodeIfPresent(String.self, forKey: .driver)
-        driver_opts = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .driver_opts
-        )
-        name = try container.decodeIfPresent(String.self, forKey: .name)
-        labels = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .labels
-        )
-
-        external = try container.decodeIfPresent(Bool.self, forKey: .external)
-    }
-
     public init(
         driver: String? = nil,
         driver_opts: [String: String]? = nil,

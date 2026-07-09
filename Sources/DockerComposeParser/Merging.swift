@@ -77,8 +77,15 @@ extension Dictionary where Key == String, Value == Any {
         -> [String: Any]
     {
         var result = self
-        let tags = update["tags"] as? [String: ComposeTag?] ?? [:]
-        print("tags: ", tags)
+
+        // NOTE: direct casting to [String: ComposeTag?] will fail
+        let tags = ((update["tags"] as? [String: String?]) ?? [:]).mapValues({
+            string in
+            if let string {
+                return ComposeTag(rawValue: string)
+            }
+            return nil
+        })
 
         for (key, newValue) in update {
             if key == "tags" {
@@ -90,7 +97,7 @@ extension Dictionary where Key == String, Value == Any {
                 switch tag {
                 case .override:
                     result[key] = newValue
-                    
+
                 case .reset:
                     if newValue is NSNull {
                         let currentValue = result[key]
@@ -105,7 +112,7 @@ extension Dictionary where Key == String, Value == Any {
                             result[key] = ""
                         case is Dictionary:
                             result[key] = [:]
-                        case is Array<Any>:
+                        case is [Any]:
                             result[key] = []
                         default:
                             result[key] = nil
@@ -125,13 +132,13 @@ extension Dictionary where Key == String, Value == Any {
                             result[key] = ""
                         case is Dictionary:
                             result[key] = [:]
-                        case is Array<Any>:
+                        case is [Any]:
                             result[key] = []
                         default:
                             result[key] = nil
                         }
                     }
-                    
+
                 }
                 continue
             }
@@ -156,10 +163,11 @@ extension Dictionary where Key == String, Value == Any {
                     with: newDict,
                     upperLevelKey: key
                 )
+                continue
             }
 
             // Priority 3: Default Docker Compose YAML Sequence Merge (Appends arrays)
-            else if let oldArray = result[key] as? [Any],
+            if let oldArray = result[key] as? [Any],
                 let newArray = newValue as? [Any]
             {
                 // Unique resources

@@ -5,6 +5,8 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Yams
+
 /// Service-level `depends_on` options for Compose map-form dependencies.
 extension Service {
     public struct Dependency: Codable, Hashable {
@@ -17,7 +19,7 @@ extension Service {
 
         /// Compose optional required hint. Defaults to true in Docker Compose.
         public var required: Bool?
-        
+
         public var tags: [String: ComposeTag?] = [:]
 
         public init(
@@ -29,26 +31,9 @@ extension Service {
             self.restart = restart
             self.required = required
         }
-
-        public init(from decoder: any Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.condition = try container.decodeIfPresent(
-                DependencyCondition.self,
-                forKey: .condition
-            )
-            self.restart = try container.decodeIfPresent(
-                Bool.self,
-                forKey: .restart
-            )
-            self.required = try container.decodeIfPresent(
-                Bool.self,
-                forKey: .required
-            )
-        }
     }
 
-    public enum DependencyCondition: String, Codable, Sendable, Hashable
-    {
+    public enum DependencyCondition: String, Codable, Sendable, Hashable {
         case service_started
         case service_healthy
         case service_completed_successfully
@@ -57,7 +42,6 @@ extension Service {
     }
 }
 
-import Yams
 extension Service.Dependency: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
@@ -73,12 +57,25 @@ extension Service.Dependency: NodeConvertible {
         if let conditionString = try? mapping.value(for: CodingKeys.condition)
             .string(envs: envs)
         {
-            self.condition = Service.DependencyCondition(rawValue: conditionString)
+            self.condition = Service.DependencyCondition(
+                rawValue: conditionString
+            )
         } else {
             self.condition = nil
         }
+        self.tags[CodingKeys.condition.stringValue] = mapping.composeTag(
+            for: CodingKeys.condition
+        )
 
         self.restart = try? mapping.value(for: CodingKeys.restart).bool
+        self.tags[CodingKeys.restart.stringValue] = mapping.composeTag(
+            for: CodingKeys.restart
+        )
+
         self.required = try? mapping.value(for: CodingKeys.required).bool
+        self.tags[CodingKeys.required.stringValue] = mapping.composeTag(
+            for: CodingKeys.required
+        )
+
     }
 }

@@ -1,41 +1,41 @@
 //
-//  GpuDevice.swift
+//  DeviceReservation.swift
 //  DockerComposeParser
 //
-//  Created by Itsuki on 2026/07/06.
+//  Created by Itsuki on 2026/07/09.
 //
 
 import Yams
 
-/// A single GPU device request within `gpus`.
 extension Service {
-    public struct GpuDevice: Codable, Hashable {
-        public var driver: String?
-        public var count: Int?
-        public var device_ids: [String]?
+    public struct DeviceReservation: Codable, Hashable {
+        /// Device capabilities
         public var capabilities: [String]?
-        // optional value to handle reset
-        public var options: [String: String?]?
+        /// Device driver
+        public var driver: String?
+        /// Number of devices
+        public var count: String?
+        /// Specific device IDs
+        public var device_ids: [String]?
 
         public var tags: [String: ComposeTag?] = [:]
 
         public init(
-            driver: String? = nil,
-            count: Int? = nil,
-            deviceIds: [String]? = nil,
-            capabilities: [String]? = nil,
-            options: [String: String]? = nil
+            capabilities: [String]?,
+            driver: String?,
+            count: String?,
+            device_ids: [String]?
         ) {
+            self.capabilities = capabilities
             self.driver = driver
             self.count = count
-            self.device_ids = deviceIds
-            self.capabilities = capabilities
-            self.options = options
+            self.device_ids = device_ids
         }
     }
+
 }
 
-extension Service.GpuDevice: NodeConvertible {
+extension Service.DeviceReservation: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
@@ -47,6 +47,12 @@ extension Service.GpuDevice: NodeConvertible {
             )
         }
 
+        self.capabilities = try? mapping.value(for: CodingKeys.capabilities)
+            .array(of: String.self, envs: envs)
+        self.tags[CodingKeys.capabilities.stringValue] = mapping.composeTag(
+            for: CodingKeys.capabilities
+        )
+
         self.driver = try? mapping.value(for: CodingKeys.driver).string(
             envs: envs
         )
@@ -54,7 +60,9 @@ extension Service.GpuDevice: NodeConvertible {
             for: CodingKeys.driver
         )
 
-        self.count = try? mapping.value(for: CodingKeys.count).int(envs: envs)
+        self.count = try? mapping.value(for: CodingKeys.count).string(
+            envs: envs
+        )
         self.tags[CodingKeys.count.stringValue] = mapping.composeTag(
             for: CodingKeys.count
         )
@@ -64,19 +72,5 @@ extension Service.GpuDevice: NodeConvertible {
         self.tags[CodingKeys.device_ids.stringValue] = mapping.composeTag(
             for: CodingKeys.device_ids
         )
-
-        self.capabilities = try? mapping.value(for: CodingKeys.capabilities)
-            .array(of: String.self, envs: envs)
-        self.tags[CodingKeys.capabilities.stringValue] = mapping.composeTag(
-            for: CodingKeys.capabilities
-        )
-
-        self.options = try? mapping.value(for: CodingKeys.options).dictionary(
-            envs: envs
-        )
-        self.tags[CodingKeys.options.stringValue] = mapping.composeTag(
-            for: CodingKeys.options
-        )
-
     }
 }
