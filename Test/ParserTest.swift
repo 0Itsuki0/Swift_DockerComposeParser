@@ -1445,6 +1445,20 @@ struct ServiceDependencyTestSuite {
         #expect(dep.restart == true)
         #expect(dep.required == false)
     }
+    
+    @Test("Test Dependency parsing - bool with env")
+    func parseWithEnv() throws {
+        let yaml = """
+            condition: service_healthy
+            restart: ${VAR}
+            required: false
+            """
+        let node = try Yams.compose(yaml: yaml)
+        let dep = try Service.Dependency(node!, envs: ["VAR": "true"])
+        #expect(dep.condition == .service_healthy)
+        #expect(dep.restart == true)
+        #expect(dep.required == false)
+    }
 
     @Test("Test Dependency parsing - empty mapping yields all nil")
     func parseEmpty() throws {

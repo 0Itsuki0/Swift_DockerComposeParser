@@ -232,7 +232,7 @@ extension Service.Build: NodeConvertible {
             for: CodingKeys.network
         )
 
-        self.no_cache = try? mapping.value(for: CodingKeys.no_cache).bool
+        self.no_cache = try? mapping.value(for: CodingKeys.no_cache).bool(envs: envs)
         self.tags[CodingKeys.no_cache.stringValue] = mapping.composeTag(
             for: CodingKeys.no_cache
         )
@@ -245,12 +245,12 @@ extension Service.Build: NodeConvertible {
             for: CodingKeys.platforms
         )
 
-        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool
+        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool(envs: envs)
         self.tags[CodingKeys.privileged.stringValue] = mapping.composeTag(
             for: CodingKeys.privileged
         )
 
-        self.pull = try? mapping.value(for: CodingKeys.pull).bool
+        self.pull = try? mapping.value(for: CodingKeys.pull).bool(envs: envs)
         self.tags[CodingKeys.pull.stringValue] = mapping.composeTag(
             for: CodingKeys.pull
         )

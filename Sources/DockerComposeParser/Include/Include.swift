@@ -212,7 +212,7 @@ extension Include {
             return try DockerCompose(
                 url: $0,
                 envs: resolvedEnvs,
-                projectDirectory: baseURL
+//                projectDirectory: baseURL
             ).merged(
                 with: overrideCompose
             )

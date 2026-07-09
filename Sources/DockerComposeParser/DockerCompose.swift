@@ -40,8 +40,7 @@ public struct DockerCompose: Codable {
     // envs: environment variables read from .env file (or any --env-file specified by the user)
     // projectDirectory: used for resolving relative paths within the compose file
     // if not specified, default to the folder containing the compose file
-    public init(url: URL, envs: [String: String], projectDirectory: URL?) throws
-    {
+    public init(url: URL, envs: [String: String]) throws {
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw ComposeError.fileNotFound
         }
@@ -49,11 +48,10 @@ public struct DockerCompose: Codable {
         try self.init(
             data: yamlData,
             envs: envs,
-            projectDirectory: projectDirectory
         )
     }
 
-    public init(data: Data, envs: [String: String], projectDirectory: URL?)
+    public init(data: Data, envs: [String: String])
         throws
     {
         guard let dockerComposeString = String(data: data, encoding: .utf8)
@@ -63,12 +61,11 @@ public struct DockerCompose: Codable {
         try self.init(
             string: dockerComposeString,
             envs: envs,
-            projectDirectory: projectDirectory
         )
 
     }
 
-    public init(string: String, envs: [String: String], projectDirectory: URL?)
+    public init(string: String, envs: [String: String])
         throws
     {
         guard let node = try Yams.compose(yaml: string) else {
@@ -141,26 +138,21 @@ public struct DockerCompose: Codable {
     }
 
     // NOTE: not resolving for include here as it will be handled individually to resolve for a full Compose
-    mutating func resolvePathToAbsolute(projectDirectory: URL) {
-        self.services = self.services.mapValues({
+    func resolvePathToAbsolute(projectDirectory: URL) -> DockerCompose {
+        var resolved = self
+        resolved.services = self.services.mapValues({
             $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
         })
-        self.configs = self.configs?.mapValues({
+        resolved.configs = self.configs?.mapValues({
             $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
         })
 
-        self.secrets = self.secrets?.mapValues({
+        resolved.secrets = self.secrets?.mapValues({
             $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
         })
+        return resolved
     }
 }
-
-//extension Array where Element == Dictionary<String, Any> {
-//    func allKeyUnique() -> Bool {
-//        let names: Set<String> = Set(self.flatMap(\.keys))
-//        return names.count == self.count
-//    }
-//}
 
 extension DockerCompose: NodeConvertible {
 
@@ -299,6 +291,7 @@ extension DockerCompose: NodeConvertible {
 }
 
 public struct ResolvedCompose: Codable {
+    // compose after resolving all relative path (except for include as it will be loaded as another ResolvedCompose)
     public var compose: DockerCompose
     public var envs: [String: String]
     public var projectDirectoryURL: URL
@@ -334,4 +327,13 @@ enum ComposeError: Error, LocalizedError {
             return "Fail to resolve variable. \(message ?? "")"
         }
     }
+}
+
+public func loadCompose(
+    url: URL,
+    envs: [String: String],
+    projectDirectory: URL?
+) throws {
+    let baseCompose = try DockerCompose.init(url: url, envs: envs)
+    
 }

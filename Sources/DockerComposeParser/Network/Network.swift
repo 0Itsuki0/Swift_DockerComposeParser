@@ -107,22 +107,22 @@ extension Network: NodeConvertible {
             for: CodingKeys.driver_opts
         )
 
-        self.attachable = try? mapping.value(for: CodingKeys.attachable).bool
+        self.attachable = try? mapping.value(for: CodingKeys.attachable).bool(envs: envs)
         self.tags[CodingKeys.attachable.stringValue] = mapping.composeTag(
             for: CodingKeys.attachable
         )
 
-        self.enable_ipv4 = try? mapping.value(for: CodingKeys.enable_ipv4).bool
+        self.enable_ipv4 = try? mapping.value(for: CodingKeys.enable_ipv4).bool(envs: envs)
         self.tags[CodingKeys.enable_ipv4.stringValue] = mapping.composeTag(
             for: CodingKeys.enable_ipv4
         )
 
-        self.enable_ipv6 = try? mapping.value(for: CodingKeys.enable_ipv6).bool
+        self.enable_ipv6 = try? mapping.value(for: CodingKeys.enable_ipv6).bool(envs: envs)
         self.tags[CodingKeys.enable_ipv6.stringValue] = mapping.composeTag(
             for: CodingKeys.enable_ipv6
         )
 
-        self.`internal` = try? mapping.value(for: CodingKeys.`internal`).bool
+        self.`internal` = try? mapping.value(for: CodingKeys.`internal`).bool(envs: envs)
         self.tags[CodingKeys.internal.stringValue] = mapping.composeTag(
             for: CodingKeys.internal
         )
@@ -143,7 +143,7 @@ extension Network: NodeConvertible {
             for: CodingKeys.ipam
         )
 
-        self.external = try? mapping.value(for: CodingKeys.external).bool
+        self.external = try? mapping.value(for: CodingKeys.external).bool(envs: envs)
         self.tags[CodingKeys.external.stringValue] = mapping.composeTag(
             for: CodingKeys.external
         )

@@ -59,7 +59,7 @@ extension Config: NodeConvertible {
             for: CodingKeys.name
         )
 
-        self.external = try? mapping.value(for: CodingKeys.external).bool
+        self.external = try? mapping.value(for: CodingKeys.external).bool(envs: envs)
         self.tags[CodingKeys.external.stringValue] = mapping.composeTag(
             for: CodingKeys.external
         )

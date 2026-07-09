@@ -60,7 +60,7 @@ extension Service.Hook: NodeConvertible {
             for: CodingKeys.user
         )
 
-        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool
+        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool(envs: envs)
         self.tags[CodingKeys.privileged.stringValue] = mapping.composeTag(
             for: CodingKeys.privileged
         )

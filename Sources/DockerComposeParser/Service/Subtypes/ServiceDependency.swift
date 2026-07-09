@@ -67,12 +67,12 @@ extension Service.Dependency: NodeConvertible {
             for: CodingKeys.condition
         )
 
-        self.restart = try? mapping.value(for: CodingKeys.restart).bool
+        self.restart = try? mapping.value(for: CodingKeys.restart).bool(envs: envs)
         self.tags[CodingKeys.restart.stringValue] = mapping.composeTag(
             for: CodingKeys.restart
         )
 
-        self.required = try? mapping.value(for: CodingKeys.required).bool
+        self.required = try? mapping.value(for: CodingKeys.required).bool(envs: envs)
         self.tags[CodingKeys.required.stringValue] = mapping.composeTag(
             for: CodingKeys.required
         )

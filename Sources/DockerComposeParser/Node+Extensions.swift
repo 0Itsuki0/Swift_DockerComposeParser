@@ -46,11 +46,37 @@ extension Node {
         return try Utility.resolveVariable(string, with: envs)
     }
 
+    // The following can all be parsed as string first
+    // - 1
+    // - "1"
+    // - 2.5
+    // - "2.5"
+    // - true
+    // - TRUE
+    // - false
+    // - "FALSE"
     public func int(envs: [String: String]) throws -> Int? {
+        // parsing as string first to resolve for env
         guard let string = try self.string(envs: envs) else {
             return nil
         }
         return Int(string)
+    }
+    
+    public func float(envs: [String: String]) throws -> Double? {
+        // parsing as string first to resolve for env
+        guard let string = try self.string(envs: envs) else {
+            return nil
+        }
+        return Double(string)
+    }
+    
+    public func bool(envs: [String: String]) throws -> Bool? {
+        // parsing as string first to resolve for env
+        guard let string = try self.string(envs: envs) else {
+            return nil
+        }
+        return Bool(string)
     }
 
     /// handle properties such as `service.dns` that can be specified as either a single value or a list
@@ -186,3 +212,21 @@ extension Node {
         )
     }
 }
+
+
+//import Playgrounds
+//#Playground {
+//    let yamlString = """
+//      - 1
+//      - "1"
+//      - 2.5
+//      - "2.5"
+//      - true
+//      - TRUE
+//      - false
+//      - "FALSE"
+//      """
+//    let node = try Yams.compose(yaml: yamlString)
+//
+//    print(node!.array().map(\.string))
+//}

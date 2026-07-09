@@ -79,7 +79,7 @@ extension Volume: NodeConvertible {
         self.labels = try? mapping.value(for: CodingKeys.labels)
             .dictionary(envs: envs)
 
-        self.external = try? mapping.value(for: CodingKeys.external).bool
+        self.external = try? mapping.value(for: CodingKeys.external).bool(envs: envs)
         self.tags[CodingKeys.external.stringValue] = mapping.composeTag(
             for: CodingKeys.external
         )

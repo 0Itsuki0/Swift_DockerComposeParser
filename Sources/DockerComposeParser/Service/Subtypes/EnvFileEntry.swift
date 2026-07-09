@@ -69,7 +69,7 @@ extension Service.EnvFileEntry: NodeConvertible {
             for: CodingKeys.path
         )
 
-        let required = try? mapping.value(for: CodingKeys.required).bool
+        let required = try? mapping.value(for: CodingKeys.required).bool(envs: envs)
         self.required = required ?? true
         self.tags[CodingKeys.required.stringValue] = mapping.composeTag(
             for: CodingKeys.required

@@ -739,12 +739,12 @@ extension Service: NodeConvertible {
             for: CodingKeys.entrypoint
         )
 
-        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool
+        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool(envs: envs)
         self.tags[CodingKeys.privileged.stringValue] = mapping.composeTag(
             for: CodingKeys.privileged
         )
 
-        self.read_only = try? mapping.value(for: CodingKeys.read_only).bool
+        self.read_only = try? mapping.value(for: CodingKeys.read_only).bool(envs: envs)
         self.tags[CodingKeys.read_only.stringValue] = mapping.composeTag(
             for: CodingKeys.read_only
         )
@@ -774,12 +774,12 @@ extension Service: NodeConvertible {
             for: CodingKeys.secrets
         )
 
-        self.stdin_open = try? mapping.value(for: CodingKeys.stdin_open).bool
+        self.stdin_open = try? mapping.value(for: CodingKeys.stdin_open).bool(envs: envs)
         self.tags[CodingKeys.stdin_open.stringValue] = mapping.composeTag(
             for: CodingKeys.stdin_open
         )
 
-        self.tty = try? mapping.value(for: CodingKeys.tty).bool
+        self.tty = try? mapping.value(for: CodingKeys.tty).bool(envs: envs)
         self.tags[CodingKeys.tty.stringValue] = mapping.composeTag(
             for: CodingKeys.tty
         )
@@ -821,7 +821,7 @@ extension Service: NodeConvertible {
             for: CodingKeys.annotations
         )
 
-        self.attach = try? mapping.value(for: CodingKeys.attach).bool
+        self.attach = try? mapping.value(for: CodingKeys.attach).bool(envs: envs)
         self.tags[CodingKeys.attach.stringValue] = mapping.composeTag(
             for: CodingKeys.attach
         )
@@ -841,7 +841,7 @@ extension Service: NodeConvertible {
             for: CodingKeys.cpu_count
         )
 
-        self.cpu_percent = try? mapping.value(for: CodingKeys.cpu_percent).float
+        self.cpu_percent = try? mapping.value(for: CodingKeys.cpu_percent).float(envs: envs)
         self.tags[CodingKeys.cpu_percent.stringValue] = mapping.composeTag(
             for: CodingKeys.cpu_percent
         )
@@ -879,16 +879,8 @@ extension Service: NodeConvertible {
             for: CodingKeys.cpu_rt_period
         )
 
-        // `cpus` accepts a Double or a numeric string.
-        if let d = try? mapping.value(for: CodingKeys.cpus).float {
-            self.cpus = d
-        } else if let s = try? mapping.value(for: CodingKeys.cpus).string(
-            envs: envs
-        ) {
-            self.cpus = Double(s)
-        } else {
-            self.cpus = nil
-        }
+        // `cpus` accepts a Double or a numeric string (already handled by float(envs:)).
+        self.cpus = try? mapping.value(for: CodingKeys.cpus).float(envs: envs)
         self.tags[CodingKeys.cpus.stringValue] = mapping.composeTag(
             for: CodingKeys.cpus
         )
@@ -1014,7 +1006,7 @@ extension Service: NodeConvertible {
             for: CodingKeys.group_add
         )
 
-        self.`init` = try? mapping.value(for: CodingKeys.`init`).bool
+        self.`init` = try? mapping.value(for: CodingKeys.`init`).bool(envs: envs)
         self.tags[CodingKeys.`init`.stringValue] = mapping.composeTag(
             for: CodingKeys.`init`
         )
@@ -1122,7 +1114,7 @@ extension Service: NodeConvertible {
 
         self.oom_kill_disable = try? mapping.value(
             for: CodingKeys.oom_kill_disable
-        ).bool
+        ).bool(envs: envs)
         self.tags[CodingKeys.oom_kill_disable.stringValue] = mapping.composeTag(
             for: CodingKeys.oom_kill_disable
         )
@@ -1252,7 +1244,7 @@ extension Service: NodeConvertible {
         )
 
         self.use_api_socket = try? mapping.value(for: CodingKeys.use_api_socket)
-            .bool
+            .bool(envs: envs)
         self.tags[CodingKeys.use_api_socket.stringValue] = mapping.composeTag(
             for: CodingKeys.use_api_socket
         )

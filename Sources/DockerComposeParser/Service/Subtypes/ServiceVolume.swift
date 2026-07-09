@@ -141,7 +141,7 @@ extension Service.BindOptions: NodeConvertible {
 
         self.create_host_path = try? mapping.value(
             for: CodingKeys.create_host_path
-        ).bool
+        ).bool(envs: envs)
         self.tags[CodingKeys.create_host_path.stringValue] = mapping.composeTag(
             for: CodingKeys.create_host_path
         )
@@ -167,7 +167,7 @@ extension Service.VolumeOptions: NodeConvertible {
             )
         }
 
-        self.nocopy = try? mapping.value(for: CodingKeys.nocopy).bool
+        self.nocopy = try? mapping.value(for: CodingKeys.nocopy).bool(envs: envs)
         self.tags[CodingKeys.nocopy.stringValue] = mapping.composeTag(
             for: CodingKeys.nocopy
         )
@@ -271,7 +271,7 @@ extension Service.Volume: NodeConvertible {
             for: CodingKeys.target
         )
 
-        self.read_only = try? mapping.value(for: CodingKeys.read_only).bool
+        self.read_only = try? mapping.value(for: CodingKeys.read_only).bool(envs: envs)
         self.tags[CodingKeys.read_only.stringValue] = mapping.composeTag(
             for: CodingKeys.read_only
         )

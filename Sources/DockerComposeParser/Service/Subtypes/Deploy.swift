@@ -311,7 +311,7 @@ extension Service.DeployUpdateConfig: NodeConvertible {
 
         self.max_failure_ratio = try? mapping.value(
             for: CodingKeys.max_failure_ratio
-        ).float
+        ).float(envs: envs)
         self.tags[CodingKeys.max_failure_ratio.stringValue] =
             mapping.composeTag(for: CodingKeys.max_failure_ratio)
 
@@ -404,7 +404,7 @@ extension Service.DeployRollbackConfig: NodeConvertible {
 
         self.max_failure_ratio = try? mapping.value(
             for: CodingKeys.max_failure_ratio
-        ).float
+        ).float(envs: envs)
         self.tags[CodingKeys.max_failure_ratio.stringValue] =
             mapping.composeTag(for: CodingKeys.max_failure_ratio)
 

@@ -781,7 +781,7 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
 
         #expect(
             compose.services["web"]??.build?.context
@@ -798,7 +798,7 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
 
         #expect(compose.services.keys.contains("worker"))
         if let workerValue = compose.services["worker"] {
@@ -818,7 +818,7 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
 
         #expect(
             compose.configs?["app_config"]??.file
@@ -833,7 +833,7 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
 
         #expect(compose.configs == nil)
     }
@@ -853,7 +853,7 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
 
         #expect(
             compose.secrets?["my_secret"]??.file
@@ -868,7 +868,7 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
 
         #expect(compose.secrets == nil)
     }
@@ -885,7 +885,7 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
 
         #expect(compose.include?.first?.path == ["../commons/compose.yaml"])
     }
