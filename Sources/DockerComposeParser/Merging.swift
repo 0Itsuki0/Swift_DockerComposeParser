@@ -6,35 +6,24 @@
 //
 
 import Foundation
-import Playgrounds
 import Yams
 
-// TODO: -
-// Memo: either resolve the context URL in init or right before merging,
-// because file URLs are relative to the compose file they are declared in
-//
-//public protocol Mergable {
-//    func merge(with update: Self) throws -> Self
-//}
-
 extension Encodable where Self: Decodable {
-    public func deepMerge(with update: Self) throws -> Self {
+    public func deepMerge(with update: Self)
+        throws -> Self
+    {
         let encoder = JSONEncoder()
         let decoder = JSONDecoder()
-
-        let baseData = try encoder.encode(self)
-        let updateData = try encoder.encode(update)
 
         // This structural map is now ONLY used as a structural topology template,
         // because we intercept the data processing steps using the type system below.
         guard
-            let baseDict = try JSONSerialization.jsonObject(with: baseData)
-                as? [String: Any],
-            let updateDict = try JSONSerialization.jsonObject(with: updateData)
-                as? [String: Any]
+            let baseDict = try self.toDictionary(),
+            let updateDict = try update.toDictionary()
         else {
             throw ComposeError.mergeError("Fail to convert compose to dict.")
         }
+        print("updateDict", updateDict)
 
         let resultDict = baseDict.deepMerge(with: updateDict)
 
@@ -85,73 +74,72 @@ extension Dictionary where Key == String, Value == Any {
                 return ComposeTag(rawValue: string)
             }
             return nil
-        })
+        }).filter({ $0.value != nil })
+        print("Tags: \(tags) for update \(update.keys)")
+
+        // Process tags first because JSON.serialization will drop null (new value) automatically, and loop through the update won't resolve the tags for those keys as they are not present.
+        for (key, tag) in tags {
+            guard let tag else { continue }
+            let newValue = update[key]
+            switch tag {
+            case .override:
+                result[key] = newValue
+
+            case .reset:
+                if newValue is NSNull {
+                    let currentValue = result[key]
+                    switch currentValue {
+                    case is Bool:
+                        result[key] = false
+                    case is Int:
+                        result[key] = 0
+                    case is Double:
+                        result[key] = 0.0
+                    case is String:
+                        result[key] = ""
+                    case is Dictionary:
+                        result[key] = [:]
+                    case is [Any]:
+                        result[key] = []
+                    default:
+                        result[key] = nil
+                    }
+                } else {
+                    // Per docker compose documentation:
+                    // A valid value for attribute must be provided,
+                    // but will be ignored and target attribute will be set with type's default value or null.
+                    switch newValue {
+                    case is Bool:
+                        result[key] = false
+                    case is Int:
+                        result[key] = 0
+                    case is Double:
+                        result[key] = 0.0
+                    case is String:
+                        result[key] = ""
+                    case is Dictionary:
+                        result[key] = [:]
+                    case is [Any]:
+                        result[key] = []
+                    default:
+                        result[key] = nil
+                    }
+                }
+            }
+        }
 
         for (key, newValue) in update {
-            if key == "tags" {
-                continue
-            }
-
-            let tag: ComposeTag? = tags[key] ?? nil
-            if let tag {
-                switch tag {
-                case .override:
-                    result[key] = newValue
-
-                case .reset:
-                    if newValue is NSNull {
-                        let currentValue = result[key]
-                        switch currentValue {
-                        case is Bool:
-                            result[key] = false
-                        case is Int:
-                            result[key] = 0
-                        case is Double:
-                            result[key] = 0.0
-                        case is String:
-                            result[key] = ""
-                        case is Dictionary:
-                            result[key] = [:]
-                        case is [Any]:
-                            result[key] = []
-                        default:
-                            result[key] = nil
-                        }
-                    } else {
-                        // A valid value for attribute must be provided,
-                        // but will be ignored and target attribute will be set with type's default value or null.
-                        result[key] = newValue
-                        switch newValue {
-                        case is Bool:
-                            result[key] = false
-                        case is Int:
-                            result[key] = 0
-                        case is Double:
-                            result[key] = 0.0
-                        case is String:
-                            result[key] = ""
-                        case is Dictionary:
-                            result[key] = [:]
-                        case is [Any]:
-                            result[key] = []
-                        default:
-                            result[key] = nil
-                        }
-                    }
-
-                }
-                continue
-            }
+            if key == "tags" { continue }
+            if tags.keys.contains(key) { continue }
 
             // new value undefined, keep the current
-            if newValue is NSNull { continue }
+            if newValue is NSNull {
+                continue
+            }
 
             // current value undefined: basic assignment
             if result[key] is NSNull {
-                // top level elements such as services, volumes, and etc. should **NOT** be added as a new entry.
-                if upperLevelKey != nil {
-                    result[key] = newValue
-                }
+                result[key] = newValue
                 continue
             }
 
@@ -250,12 +238,14 @@ extension Dictionary where Key == String, Value == Any {
                 }
 
                 result[key] = oldArray + newArray
+
+                continue
             }
+
             // Priority 4: Standard primitive overwrite
-            else {
-                result[key] = newValue
-            }
+            result[key] = newValue
         }
+
         return result
     }
 }

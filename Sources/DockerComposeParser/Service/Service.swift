@@ -496,41 +496,6 @@ public struct Service: Codable, Hashable {
     }
 }
 
-extension Service {
-    //    ServiceExtends
-
-    // needs to be processed in order of defined within the compose file.
-    public func resolveExtends(
-        composeDirectory: URL,
-        selfName: String,
-        servicesBeforeSelf: [Service]
-    ) throws -> Service {
-        var service = self
-        guard let extend = self.extends else {
-            return service
-        }
-
-        // extending from anther file
-        if let file = extend.file {
-            //            let fullURL = URL(filePath: file, relativeTo: composeDirectory)
-            //            let compose = try DockerCompose(url: fullURL)
-            //            guard let baseServiceIndex = compose.services.firstIndex(where: {$0.key == selfName}) else {
-            //                throw ComposeError.invalidExtends("Service \(selfName) not found in \(file)")
-            //            }
-            //
-            //            let baseService = compose.services[baseServiceIndex]
-
-            //            let resolved = baseService.value.resolveExtends(composeDirectory: composeDirectory, selfName: selfName, servicesBeforeSelf: <#T##[Service]#>)
-            //            let merged = baseService.value.deepMerge(with: self)
-        }
-
-        // extending from the same file
-        //        self.services.ser
-
-        return service
-    }
-}
-
 extension Service: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
@@ -739,12 +704,16 @@ extension Service: NodeConvertible {
             for: CodingKeys.entrypoint
         )
 
-        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool(envs: envs)
+        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.privileged.stringValue] = mapping.composeTag(
             for: CodingKeys.privileged
         )
 
-        self.read_only = try? mapping.value(for: CodingKeys.read_only).bool(envs: envs)
+        self.read_only = try? mapping.value(for: CodingKeys.read_only).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.read_only.stringValue] = mapping.composeTag(
             for: CodingKeys.read_only
         )
@@ -774,7 +743,9 @@ extension Service: NodeConvertible {
             for: CodingKeys.secrets
         )
 
-        self.stdin_open = try? mapping.value(for: CodingKeys.stdin_open).bool(envs: envs)
+        self.stdin_open = try? mapping.value(for: CodingKeys.stdin_open).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.stdin_open.stringValue] = mapping.composeTag(
             for: CodingKeys.stdin_open
         )
@@ -821,7 +792,9 @@ extension Service: NodeConvertible {
             for: CodingKeys.annotations
         )
 
-        self.attach = try? mapping.value(for: CodingKeys.attach).bool(envs: envs)
+        self.attach = try? mapping.value(for: CodingKeys.attach).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.attach.stringValue] = mapping.composeTag(
             for: CodingKeys.attach
         )
@@ -841,7 +814,8 @@ extension Service: NodeConvertible {
             for: CodingKeys.cpu_count
         )
 
-        self.cpu_percent = try? mapping.value(for: CodingKeys.cpu_percent).float(envs: envs)
+        self.cpu_percent = try? mapping.value(for: CodingKeys.cpu_percent)
+            .float(envs: envs)
         self.tags[CodingKeys.cpu_percent.stringValue] = mapping.composeTag(
             for: CodingKeys.cpu_percent
         )
@@ -1006,7 +980,9 @@ extension Service: NodeConvertible {
             for: CodingKeys.group_add
         )
 
-        self.`init` = try? mapping.value(for: CodingKeys.`init`).bool(envs: envs)
+        self.`init` = try? mapping.value(for: CodingKeys.`init`).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.`init`.stringValue] = mapping.composeTag(
             for: CodingKeys.`init`
         )
@@ -1301,5 +1277,32 @@ extension Service {
         }
 
         return resolved
+    }
+
+    // 1. need to be called after resolving all includes because
+    // the `services` parameter here needs both  defined in the current compose as well as those in the `include`
+    // 2. Assume being called after the resolvePathToAbsolute above so that the extend.file is already an absolute URL.
+    public func resolveExtends(
+        resolveInLoaded: () throws -> Service,
+        resolveInFile: (URL) throws -> Service,
+        //        selfName: String,
+    ) throws -> Service {
+        guard let extend = self.extends else {
+            return self
+        }
+        //        guard extend.service != selfName else {
+        //            throw ComposeError.invalidExtends("Service extending cannot be the same as the service being extended.")
+        //        }
+
+        guard let file = extend.file else {
+            let loaded = try resolveInLoaded()
+            let merged = try loaded.deepMerge(with: self)
+            return merged
+        }
+
+        let fileURL = URL(filePath: file)
+        let loaded = try resolveInFile(fileURL)
+        let merged = try loaded.deepMerge(with: self)
+        return merged
     }
 }

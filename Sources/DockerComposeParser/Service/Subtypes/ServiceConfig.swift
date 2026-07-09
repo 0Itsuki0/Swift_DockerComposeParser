@@ -51,7 +51,6 @@ extension Service.Config {
             return self
         }
         let merged = old.deepMerge(with: new)
-
         return (try? Service.Config.fromDictionary(merged)) ?? self
     }
 }

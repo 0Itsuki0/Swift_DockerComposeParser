@@ -44,20 +44,7 @@ extension Service {
 }
 
 extension Service.Secret {
-//    func merge(with other: Service.Secret) -> Service.Secret {
-//        let old = self
-//        let new = other
-//        let merged = Service.Secret(
-//            source: new.source,
-//            target: new.target ?? old.target,
-//            uid: new.uid ?? old.uid,
-//            gid: new.gid ?? old.gid,
-//            mode: new.mode ?? old.mode
-//        )
-//
-//        return merged
-//    }
-    
+
     func merge(with update: Service.Secret) -> Service.Secret {
         guard let old = try? self.toDictionary(),
             let new = try? update.toDictionary()
@@ -72,9 +59,9 @@ extension Service.Secret {
 }
 
 extension Array where Element == Service.Secret {
-    func merge(with otherVolumes: [Service.Secret]) -> [Service.Secret] {
+    func merge(with update: [Service.Secret]) -> [Service.Secret] {
         var result: [Service.Secret] = self
-        for new in otherVolumes {
+        for new in update {
             if let firstIndex = result.firstIndex(where: {
                 $0.target == new.target
             }) {

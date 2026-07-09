@@ -377,7 +377,6 @@ extension Service.Volume {
     private static func parseShortSyntax(_ raw: String) throws -> Service.Volume
     {
         let components = splitRespectingWindowsDrive(raw)
-        print("components: \(components)")
         guard !components.isEmpty, components.count <= 3 else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -462,22 +461,7 @@ extension Service.Volume {
 }
 
 extension Service.Volume {
-    //    func merge(with otherVolume: Service.Volume) -> Service.Volume {
-    //        let oldVolume = self
-    //        let newVolume = otherVolume
-    //        let merged = Service.Volume(
-    //            type: newVolume.type,
-    //            source: newVolume.source ?? oldVolume.source,
-    //            target: newVolume.target,
-    //            read_only: newVolume.read_only ?? oldVolume.read_only,
-    //            bind: newVolume.bind ?? oldVolume.bind,
-    //            volume: newVolume.volume ?? oldVolume.volume,
-    //            tmpfs: newVolume.tmpfs ?? oldVolume.tmpfs,
-    //            consistency: newVolume.consistency ?? oldVolume.consistency
-    //        )
-    //
-    //        return merged
-    //    }
+    
     func merge(with update: Service.Volume) -> Service.Volume {
         guard let old = try? self.toDictionary(),
             let new = try? update.toDictionary()
@@ -491,9 +475,9 @@ extension Service.Volume {
 }
 
 extension Array where Element == Service.Volume {
-    func merge(with otherVolumes: [Service.Volume]) -> [Service.Volume] {
+    func merge(with update: [Service.Volume]) -> [Service.Volume] {
         var result: [Service.Volume] = self
-        for new in otherVolumes {
+        for new in update {
             if let firstIndex = result.firstIndex(where: {
                 $0.target == new.target
             }) {

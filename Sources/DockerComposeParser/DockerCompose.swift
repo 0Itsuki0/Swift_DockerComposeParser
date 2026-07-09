@@ -101,16 +101,12 @@ public struct DockerCompose: Codable {
         self.secrets = secrets
     }
 
-    public func merged(with update: DockerCompose) throws -> DockerCompose {
-        return try self.deepMerge(with: update)
-    }
-
     // returning: included compose to be built, after applying any override applied by the base (main)
     public func resolveIncludes(composeDirectory: URL, envs: [String: String])
         throws
-        -> [ResolvedCompose]
+        -> [DockerCompose]
     {
-        var resolvedComposes: [ResolvedCompose] = try (self.include ?? [])
+        var resolvedComposes: [DockerCompose] = try (self.include ?? [])
             .flatMap({
                 try $0.resolve(
                     overrideComposeDirectory: composeDirectory,
@@ -120,16 +116,16 @@ public struct DockerCompose: Codable {
             })
 
         // loop through resolvedComposes for nested includes
-        for compose in resolvedComposes {
-            let nestedResult = try compose.compose.resolveIncludes(
-                composeDirectory: compose.projectDirectoryURL,
-                envs: envs
-            )
-            resolvedComposes.append(contentsOf: nestedResult)
-        }
-
-        // check unique
-        try Utility.checkIncludeUniqueness(resolvedComposes.map(\.compose))
+        //        for compose in resolvedComposes {
+        //            let nestedResult = try compose.resolveIncludes(
+        //                composeDirectory: compose.projectDirectoryURL,
+        //                envs: envs
+        //            )
+        //            resolvedComposes.append(contentsOf: nestedResult)
+        //        }
+        //
+        //        // check unique
+        //        try Utility.checkIncludeUniqueness(resolvedComposes.map(\.compose))
         return resolvedComposes
     }
 
@@ -290,12 +286,12 @@ extension DockerCompose: NodeConvertible {
     }
 }
 
-public struct ResolvedCompose: Codable {
-    // compose after resolving all relative path (except for include as it will be loaded as another ResolvedCompose)
-    public var compose: DockerCompose
-    public var envs: [String: String]
-    public var projectDirectoryURL: URL
-}
+//public struct ResolvedCompose: Codable {
+//    // compose after resolving all relative path (except for include as it will be loaded as another ResolvedCompose)
+//    public var compose: DockerCompose
+//    public var envs: [String: String]
+//    public var projectDirectoryURL: URL
+//}
 
 enum ComposeError: Error, LocalizedError {
     case envFailToResolve(String?)
@@ -330,10 +326,21 @@ enum ComposeError: Error, LocalizedError {
 }
 
 public func loadCompose(
-    url: URL,
+    _ composeURL: URL,
     envs: [String: String],
-    projectDirectory: URL?
-) throws {
-    let baseCompose = try DockerCompose.init(url: url, envs: envs)
-    
+) throws -> [DockerCompose] {
+    let projectDirectory = composeURL.deletingLastPathComponent()
+    var baseCompose = try DockerCompose.init(url: composeURL, envs: envs)
+    baseCompose = baseCompose.resolvePathToAbsolute(
+        projectDirectory: projectDirectory
+    )
+
+    // TODO: -
+    // 1. resolve path
+    // 2. load include
+    // 3. remove override services, volumes, and etc.from baseCompose
+    // 4. resolve extend
+    // 5. validate all service depending on are included
+
+    return [baseCompose]
 }

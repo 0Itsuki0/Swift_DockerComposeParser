@@ -54,55 +54,6 @@ extension Service {
     }
 }
 
-extension Service.Port {
-//    func merge(with other: Service.Port) -> Service.Port {
-//        let old = self
-//        let new = other
-//        let merged = Service.Port(
-//            target: new.target,
-//            published: new.published ?? old.published,
-//            host_ip: new.host_ip ?? old.host_ip,
-//            app_protocol: new.app_protocol ?? old.app_protocol,
-//            protocol: new.protocol ?? old.protocol,
-//            mode: new.mode ?? old.mode,
-//            name: new.name ?? old.name
-//        )
-//
-//        return merged
-//    }
-    func merge(with update: Service.Port) -> Service.Port {
-        guard let old = try? self.toDictionary(),
-            let new = try? update.toDictionary()
-        else {
-            return self
-        }
-        let merged = old.deepMerge(with: new)
-
-        return (try? Service.Port.fromDictionary(merged)) ?? self
-    }
-
-}
-
-extension Array where Element == Service.Port {
-    func merge(with otherVolumes: [Service.Port]) -> [Service.Port] {
-        var result: [Service.Port] = self
-        for new in otherVolumes {
-            // unique Key: {ip, target, published, protocol}
-            if let firstIndex = result.firstIndex(where: {
-                $0.host_ip == new.host_ip && $0.target == new.target
-                    && $0.published == new.published
-                    && $0.protocol == new.protocol
-            }) {
-                result[firstIndex] = result[firstIndex].merge(with: new)
-            } else {
-                result.append(new)
-            }
-        }
-
-        return result
-    }
-}
-
 extension Service.Port: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
@@ -294,5 +245,40 @@ extension Service.Port: NodeConvertible {
             host_ip: hostIp,
             protocol: proto
         )
+    }
+}
+
+// MARK: - Merge port to handle unique Key: {ip, target, published, protocol}
+extension Service.Port {
+
+    func merge(with update: Service.Port) -> Service.Port {
+        guard let old = try? self.toDictionary(),
+            let new = try? update.toDictionary()
+        else {
+            return self
+        }
+        let merged = old.deepMerge(with: new)
+        return (try? Service.Port.fromDictionary(merged)) ?? self
+    }
+
+}
+
+extension Array where Element == Service.Port {
+    func merge(with update: [Service.Port]) -> [Service.Port] {
+        var result: [Service.Port] = self
+        for new in update {
+            // unique Key: {ip, target, published, protocol}
+            if let firstIndex = result.firstIndex(where: {
+                $0.host_ip == new.host_ip && $0.target == new.target
+                    && $0.published == new.published
+                    && $0.protocol == new.protocol
+            }) {
+                result[firstIndex] = result[firstIndex].merge(with: new)
+            } else {
+                result.append(new)
+            }
+        }
+
+        return result
     }
 }

@@ -166,7 +166,7 @@ extension Include {
         overrideCompose: DockerCompose,
         overrideEnvs: [String: String]
     ) throws
-        -> [ResolvedCompose]
+        -> [DockerCompose]
     {
         guard
             let baseURL = self.resolveProjectDirectoryURL(
@@ -209,22 +209,18 @@ extension Include {
         }
 
         let composes = try includePaths.map({
+            // TODO: instead of deep merging the entire overrideCompose,
+            // filter for filters, volumes, networks, and etc to only include those ones that included in the resolved compose
             return try DockerCompose(
                 url: $0,
                 envs: resolvedEnvs,
-//                projectDirectory: baseURL
-            ).merged(
+                //                projectDirectory: baseURL
+            ).deepMerge(
                 with: overrideCompose
             )
         })
 
-        return composes.map({
-            ResolvedCompose(
-                compose: $0,
-                envs: resolvedEnvs,
-                projectDirectoryURL: baseURL
-            )
-        })
+        return composes
     }
 
 }
