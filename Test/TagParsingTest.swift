@@ -6,7 +6,7 @@
 //
 
 
-import DockerComposeParser
+@testable import DockerComposeParser
 import Testing
 import Yams
 

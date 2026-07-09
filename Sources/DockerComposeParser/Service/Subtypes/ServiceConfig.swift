@@ -45,17 +45,14 @@ extension Service {
 
 extension Service.Config {
     func merge(with update: Service.Config) -> Service.Config {
-        let old = self
-        let new = update
-        let merged = Service.Config(
-            source: new.source,
-            target: new.target ?? old.target,
-            uid: new.uid ?? old.uid,
-            gid: new.gid ?? old.gid,
-            mode: new.mode ?? old.mode
-        )
+        guard let old = try? self.toDictionary(),
+            let new = try? update.toDictionary()
+        else {
+            return self
+        }
+        let merged = old.deepMerge(with: new)
 
-        return merged
+        return (try? Service.Config.fromDictionary(merged)) ?? self
     }
 }
 

@@ -59,62 +59,6 @@ public struct Include: Codable, Hashable {
         self.project_directory = project_directory
         self.env_file = env_file
     }
-
-    public init(from decoder: Decoder) throws {
-        // Short syntax: the entry is just a bare path string.
-        if let singlePath = try? decoder.singleValueContainer().decode(
-            String.self
-        ) {
-            path = [singlePath]
-            project_directory = nil
-            env_file = nil
-            return
-        }
-
-        // Long syntax: an object with `path`, `project_directory`, and `env_file`.
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        // `path` accepts either a single string or a list of strings.
-        if let pathList = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .path
-        ) {
-            path = pathList
-        } else if let pathString = try? container.decodeIfPresent(
-            String.self,
-            forKey: .path
-        ) {
-            path = [pathString]
-        } else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .path,
-                in: container,
-                debugDescription: "Include entry must have a 'path' specified."
-            )
-        }
-
-        project_directory = try container.decodeIfPresent(
-            String.self,
-            forKey: .project_directory
-        )
-
-        // `env_file` accepts either a single string or a list of strings, same as
-        // the service-level `env_file` attribute.
-        if let envFileList = try? container.decodeIfPresent(
-            [String].self,
-            forKey: .env_file
-        ) {
-            env_file = envFileList
-        } else if let envFileString = try? container.decodeIfPresent(
-            String.self,
-            forKey: .env_file
-        ) {
-            env_file = [envFileString]
-        } else {
-            env_file = nil
-        }
-    }
-
 }
 
 extension Include: NodeConvertible {
@@ -197,25 +141,66 @@ extension Include: NodeConvertible {
 }
 
 extension Include {
+    // Project directory is to be used for resolving any relative path contained within the included compose file.
+    // ie: the env_file property should NOT be resolved based on this
+    private func resolveProjectDirectoryURL(overrideComposeDirectory: URL)
+        -> URL?
+    {
+        if let projectDirectory = self.project_directory {
+            return URL(
+                filePath: projectDirectory,
+                relativeTo: overrideComposeDirectory
+            )
+        }
+
+        guard let first = self.path.first else {
+            return nil
+        }
+
+        return URL(filePath: first, relativeTo: overrideComposeDirectory)
+            .deletingLastPathComponent()
+    }
 
     func resolve(
-        composeDirectory: URL,
-        overrideCompose: DockerCompose
+        overrideComposeDirectory: URL,
+        overrideCompose: DockerCompose,
+        overrideEnvs: [String: String]
     ) throws
         -> [ResolvedCompose]
     {
-        let baseURL = URL(
-            filePath: self.project_directory ?? ".",
-            relativeTo: composeDirectory
-        )
-        let envFiles = (self.env_file ?? []).map {
-            URL(filePath: $0, relativeTo: baseURL)
+        guard
+            let baseURL = self.resolveProjectDirectoryURL(
+                overrideComposeDirectory: overrideComposeDirectory
+            )
+        else {
+            throw ComposeError.failToResolveProjectURL
         }
-        let envs = try envFiles.map({ try Utility.loadEnvFile($0) })
+
+        var envFiles = (self.env_file ?? []).map {
+            // the override compose (main compose) directory instead of the project directory defined by base URL
+            URL(filePath: $0, relativeTo: overrideComposeDirectory)
+        }
+
+        if envFiles.isEmpty {
+            // It defaults to .env file in the project_directory for the Compose file being parsed.
+            envFiles.append(URL(filePath: ".env", relativeTo: baseURL))
+        }
+
+        envFiles = envFiles.filter({
+            FileManager.default.fileExists(atPath: $0.path())
+        })
+
+        var envs: [[String: String]] = try envFiles.map({
+            try Utility.loadEnvFile($0)
+        })
+        // overrideEnvs comes last for the highest priority
+        envs.append(overrideEnvs)
         var resolvedEnvs: [String: String] = envs.first ?? [:]
         for env in envs.dropFirst() {
-            resolvedEnvs = try resolvedEnvs.deepMerge(with: env)
+            // NOTE: not using deepMerging as we already knew the value is a String
+            resolvedEnvs = resolvedEnvs.merging(env) { (current, new) in new }
         }
+
         let includePaths = self.path.map {
             URL(
                 filePath: $0,
@@ -224,17 +209,95 @@ extension Include {
         }
 
         let composes = try includePaths.map({
-            try DockerCompose(url: $0, envs: resolvedEnvs).merged(
+            return try DockerCompose(
+                url: $0,
+                envs: resolvedEnvs,
+                projectDirectory: baseURL
+            ).merged(
                 with: overrideCompose
             )
         })
+
         return composes.map({
             ResolvedCompose(
                 compose: $0,
-                envFiles: envFiles,
-                contextURL: baseURL
+                envs: resolvedEnvs,
+                projectDirectoryURL: baseURL
             )
         })
     }
 
 }
+
+// no need to deepMerge the full thing here because we only want to apply updates on individual services, volume, and etc only if they are present in the overrideCompose.
+//            var compose = try DockerCompose(url: $0, envs: resolvedEnvs)
+//            let composeServices = compose.services
+//            for (name, overrideService) in overrideCompose.services {
+//                guard composeServices.contains(where: { $0.key == name }) else {
+//                    continue
+//                }
+//                if let currentService = composeServices[name] {
+//                    let merged = try currentService.deepMerge(with: overrideService)
+//                    compose.services[name] = merged
+//                } else {
+//                    compose.services[name] = overrideService
+//                }
+//            }
+//
+//            let composeVolume = compose.volumes
+//            for (name, overrideVolume) in overrideCompose.volumes ?? [:]  {
+//                guard composeVolume.contains(where: { $0.key == name }) else {
+//                    continue
+//                }
+//                if let currentService = composeServices[name] {
+//                    let merged = try currentService.deepMerge(with: overrideService)
+//                    compose.services[name] = merged
+//                } else {
+//                    compose.services[name] = overrideService
+//                }
+//            }
+//
+//            let composeModels = compose.models
+//            for (name, service) in overrideCompose.models ?? [:] {
+//                guard composeServices.contains(where: { $0.key == name }) else {
+//                    continue
+//                }
+//                if let currentService = composeServices[name] {
+//                    let merged = try currentService.deepMerge(with: overrideService)
+//                    compose.services[name] = merged
+//                } else {
+//                    compose.services[name] = overrideService
+//                }
+//
+//            }
+//
+//            for (name, service) in overrideCompose.networks ?? [:] {
+//
+//            }
+//
+//            for (name, service) in overrideCompose.configs ?? [:] {
+//
+//            }
+//
+//            for (name, service) in overrideCompose.secrets ?? [:] {
+//
+//            }
+
+//
+//extension Dictionary where Key == String, Value == Service {
+//    func deepMerge(with update: [String: Service]) -> [String: Service] {
+//        for (name, overrideService) in overrideCompose.services {
+//            guard composeServices.contains(where: { $0.key == name }) else {
+//                continue
+//            }
+//            if let currentService = composeServices[name] {
+//                let merged = try currentService.deepMerge(with: overrideService)
+//                compose.services[name] = merged
+//            } else {
+//                compose.services[name] = overrideService
+//            }
+//        }
+//
+//
+//    }
+//}

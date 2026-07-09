@@ -13,7 +13,7 @@
 //  Created by Itsuki on 2026/07/08.
 //
 
-import DockerComposeParser
+@testable import DockerComposeParser
 import Testing
 import Yams
 

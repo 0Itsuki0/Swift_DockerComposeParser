@@ -5,6 +5,7 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Foundation
 import Yams
 
 /// Represents a top-level secret definition
@@ -17,7 +18,10 @@ public struct Secret: Codable, Hashable {
 
     public var tags: [String: ComposeTag?] = [:]
 
-    public init(file: String?, environment: String?) {
+    public init(
+        file: String? = nil,
+        environment: String? = nil,
+    ) {
         self.file = file
         self.environment = environment
     }
@@ -47,5 +51,15 @@ extension Secret: NodeConvertible {
             for: CodingKeys.environment
         )
 
+    }
+}
+
+extension Secret {
+    func resolvePathToAbsolute(projectDirectory: URL) -> Secret {
+        var resolved = self
+        resolved.file = resolved.file?.absolutePath(
+            relativeTo: projectDirectory
+        )
+        return resolved
     }
 }

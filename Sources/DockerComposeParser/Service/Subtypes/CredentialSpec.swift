@@ -5,6 +5,7 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Foundation
 import Yams
 
 /// Credential spec for a managed service account (`credential_spec`), primarily used by Windows containers.
@@ -57,6 +58,16 @@ extension Service.CredentialSpec: NodeConvertible {
         self.tags[CodingKeys.config.stringValue] = mapping.composeTag(
             for: CodingKeys.config
         )
+    }
+}
 
+extension Service.CredentialSpec {
+    func resolvePathToAbsolute(projectDirectory: URL) -> Service.CredentialSpec
+    {
+        var resolved = self
+        resolved.file = resolved.file?.absolutePath(
+            relativeTo: projectDirectory
+        )
+        return resolved
     }
 }

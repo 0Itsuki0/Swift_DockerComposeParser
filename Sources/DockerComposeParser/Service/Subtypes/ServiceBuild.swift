@@ -5,6 +5,7 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Foundation
 import Yams
 
 /// Represents the `build` configuration for a service.
@@ -22,9 +23,9 @@ extension Service {
         /// Additional named build contexts
         public var additional_contexts: [String: String?]?
         /// Images to consider as cache sources
-        public var cache_from: [String]?
+        public var cache_from: [CacheEntry]?
         /// Cache export destinations
-        public var cache_to: [String]?
+        public var cache_to: [CacheEntry]?
         /// Extra hosts to add at build time
         public var extra_hosts: [String: String?]?
         /// Isolation technology for the build container (e.g. 'default', 'process', 'hyperv')
@@ -56,25 +57,25 @@ extension Service {
 
         public init(
             context: String,
-            dockerfile: String?,
-            dockerfile_inline: String?,
-            args: [String: String]?,
-            additional_contexts: [String: String]?,
-            cache_from: [String]?,
-            cache_to: [String]?,
-            extra_hosts: [String: String]?,
-            isolation: String?,
-            labels: [String: String]?,
-            network: String?,
-            no_cache: Bool?,
-            platforms: [String]?,
-            privileged: Bool?,
-            pull: Bool?,
-            secrets: [Service.Secret]?,
-            shm_size: String?,
-            target: String?,
-            ssh: [String]?,
-            ulimits: [String: Service.Ulimit]?
+            dockerfile: String? = nil,
+            dockerfile_inline: String? = nil,
+            args: [String: String?]? = nil,
+            additional_contexts: [String: String?]? = nil,
+            cache_from: [CacheEntry]? = nil,
+            cache_to: [CacheEntry]? = nil,
+            extra_hosts: [String: String?]? = nil,
+            isolation: String? = nil,
+            labels: [String: String?]? = nil,
+            network: String? = nil,
+            no_cache: Bool? = nil,
+            platforms: [String]? = nil,
+            privileged: Bool? = nil,
+            pull: Bool? = nil,
+            secrets: [Service.Secret?]? = nil,
+            shm_size: String? = nil,
+            target: String? = nil,
+            ssh: [String]? = nil,
+            ulimits: [String: Service.Ulimit?]? = nil,
         ) {
             self.context = context
             self.dockerfile = dockerfile
@@ -189,7 +190,7 @@ extension Service.Build: NodeConvertible {
             )
 
         self.cache_from = try? mapping.value(for: CodingKeys.cache_from).array(
-            of: String.self,
+            of: CacheEntry.self,
             envs: envs
         )
         self.tags[CodingKeys.cache_from.stringValue] = mapping.composeTag(
@@ -197,7 +198,7 @@ extension Service.Build: NodeConvertible {
         )
 
         self.cache_to = try? mapping.value(for: CodingKeys.cache_to).array(
-            of: String.self,
+            of: CacheEntry.self,
             envs: envs
         )
         self.tags[CodingKeys.cache_to.stringValue] = mapping.composeTag(
@@ -303,5 +304,154 @@ extension Service.Build: NodeConvertible {
             for: CodingKeys.ulimits
         )
 
+    }
+}
+
+extension Service.Build {
+
+    /// A single `cache_from`/`cache_to` entry.
+    ///
+    /// Syntax: `[NAME|type=TYPE[,KEY=VALUE...]]`
+    /// A bare `NAME` is shorthand for `type=registry,ref=NAME`.
+    /// https://docs.docker.com/reference/compose-file/build/#cache_from
+    /// NOTE: no tags since it will be an array resolved from Build
+    public struct CacheEntry: Codable, Hashable {
+        /// Cache backend type, e.g. "registry", "gha", "local", "s3".
+        public var type: String
+        /// Remaining `key=value` attributes for the given type (e.g. "ref", "mode").
+        public var options: [String: String]
+
+        public init(type: String, options: [String: String] = [:]) {
+            self.type = type
+            self.options = options
+        }
+    }
+}
+
+extension Service.Build.CacheEntry: NodeConvertible {
+
+    public init(_ node: Node, envs: [String: String]) throws {
+        guard let raw = try node.string(envs: envs) else {
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: [],
+                    debugDescription:
+                        "Invalid yaml data. Expected a string for cache entry."
+                )
+            )
+        }
+        self = try Self.parse(raw)
+    }
+
+    private static func parse(_ raw: String) throws -> Service.Build.CacheEntry
+    {
+        guard raw.contains("type=") else {
+            return Service.Build.CacheEntry(
+                type: "registry",
+                options: ["ref": raw]
+            )
+        }
+
+        let parts = raw.split(separator: ",").map(String.init).map({
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        })
+        var type: String?
+        var options: [String: String] = [:]
+
+        for part in parts {
+            guard let eqIndex = part.firstIndex(of: "=") else {
+                throw DecodingError.dataCorrupted(
+                    .init(
+                        codingPath: [],
+                        debugDescription:
+                            "Invalid cache entry component: \(part) in \(raw)"
+                    )
+                )
+            }
+            let key = String(part[..<eqIndex])
+            let value = String(part[part.index(after: eqIndex)...])
+            if key == "type" {
+                type = value
+            } else {
+                options[key] = value
+            }
+        }
+
+        guard let resolvedType = type, !resolvedType.isEmpty else {
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: [],
+                    debugDescription: "Cache entry missing 'type': \(raw)"
+                )
+            )
+        }
+
+        return Service.Build.CacheEntry(type: resolvedType, options: options)
+    }
+}
+
+extension Service.Build.CacheEntry {
+    func resolvePathToAbsolute(projectDirectory: URL)
+        -> Service.Build.CacheEntry
+    {
+        var resolved = self
+        guard resolved.type == "local" else {
+            return resolved
+        }
+
+        var resolvedOptions: [String: String] = [:]
+        for (key, value) in resolved.options {
+            guard key == "src" || key == "dest" else {
+                resolvedOptions[key] = value
+                continue
+            }
+            resolvedOptions[key] = value.absolutePath(
+                relativeTo: projectDirectory
+            )
+        }
+        resolved.options = resolvedOptions
+        return resolved
+    }
+}
+
+extension Service.Build {
+    func resolvePathToAbsolute(projectDirectory: URL) -> Service.Build {
+        var resolved = self
+        if Utility.isLocalPath(self.context) {
+            resolved.context = resolved.context.absolutePath(
+                relativeTo: projectDirectory
+            )
+        }
+
+        if let additional_contexts = resolved.additional_contexts {
+            resolved.additional_contexts = additional_contexts.mapValues({
+                value in
+                guard let value, Utility.isLocalPath(value) else {
+                    return value
+                }
+                return value.absolutePath(relativeTo: projectDirectory)
+            })
+        }
+
+        if let dockerfile = resolved.dockerfile {
+            resolved.dockerfile = dockerfile.absolutePath(
+                // NOTE: dockerfile is resolved against context instead of the current project directory
+                relativeTo: URL(filePath: resolved.context)
+            )
+        }
+
+        if let cache_to = resolved.cache_to {
+            resolved.cache_to = cache_to.map({
+                $0.resolvePathToAbsolute(projectDirectory: projectDirectory)
+            })
+        }
+
+        if let cache_from = resolved.cache_from {
+            resolved.cache_from = cache_from.map({
+                $0.resolvePathToAbsolute(projectDirectory: projectDirectory)
+            })
+        }
+
+        return resolved
     }
 }

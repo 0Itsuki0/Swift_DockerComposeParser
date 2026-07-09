@@ -7,12 +7,33 @@
 
 
 
-import DockerComposeParser
+@testable import DockerComposeParser
 import Testing
 import Yams
 
-@Suite("Megin Tests")
+@Suite("Merging Tests")
 struct MergingTestSuite {
+    
+    // Unique resources
+    // Applies to the ports, volumes, secrets and configs services attributes.
+    // While these types are modeled in a Compose file as a sequence, they have special uniqueness requirements:
+    // https://docs.docker.com/reference/compose-file/merge/#unique-resources
+    @Test("Test volume merging with same target")
+    func testVolumeMerging() async throws {
+        let baseString = """
+        foo:/work
+        """
+        let mergingString = """
+        bar:/work
+        """
+
+        let base = try Service.Volume(try Yams.compose(yaml: baseString)!, envs:[:])
+        let merging = try Service.Volume(try Yams.compose(yaml: mergingString)!, envs:[:])
+        let merged = try base.deepMerge(with: merging)
+        #expect(merged.source == "bar")
+        #expect(merged.target == "/work")
+    }
+
     
     @Test("Test merging with override")
     func testMergingWithOverride() async throws {
@@ -31,42 +52,6 @@ struct MergingTestSuite {
         let merged = try base.deepMerge(with: merging)
         #expect(merged.path == ["../compose.yaml"])
     }
+ 
     
-    @Test(
-        "Test reset parsing with no default",
-        arguments: [
-            """
-            path: !reset
-            """
-        ]
-    )
-    func testResetParsingWithNoDefault(_ yaml: String) async throws {
-        let node = try Yams.compose(yaml: yaml)
-        #expect(node != nil)
-        let include = try Include(node!, envs:[:])
-        #expect(include.path == [""])
-        #expect(include.tags["path"] == .reset)
-
-    }
-    
-    
-    @Test(
-        "Test override",
-        arguments: [
-            """
-            path: !override
-                - "../commons/compose2.yaml" 
-            project_directory: ..
-            env_file: ../another/.env
-            """
-        ]
-    )
-    func testOverrideParsing(_ yaml: String) async throws {
-        let node = try Yams.compose(yaml: yaml)
-        #expect(node != nil)
-        let include = try Include(node!, envs:[:])
-        #expect(include.path == ["../commons/compose2.yaml"])
-        #expect(include.tags["path"] == .override)
-    }
-
 }

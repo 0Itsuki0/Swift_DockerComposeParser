@@ -189,7 +189,7 @@ public struct Service: Codable, Hashable {
     public var expose: [String]?
 
     /// Base service definition to merge with, per the Compose spec `extends` key.
-    public var extends: ServiceExtends?
+    public var extends: Extends?
 
     /// Links to service containers managed outside of this Compose application.
     public var external_links: [String]?
@@ -306,9 +306,6 @@ public struct Service: Codable, Hashable {
     /// Mounts all volumes from another service or container.
     public var volumes_from: [String]?
 
-    /// Other services that depend on this service
-    public var dependedBy: [String] = []
-
     public var tags: [String: ComposeTag?] = [:]
 
     /// Public memberwise initializer for testing
@@ -366,7 +363,7 @@ public struct Service: Codable, Hashable {
         dns_search: [String]? = nil,
         domainname: String? = nil,
         expose: [String]? = nil,
-        extends: ServiceExtends? = nil,
+        extends: Extends? = nil,
         external_links: [String]? = nil,
         gpus: GPU? = nil,
         group_add: [String]? = nil,
@@ -404,7 +401,6 @@ public struct Service: Codable, Hashable {
         userns_mode: String? = nil,
         uts: String? = nil,
         volumes_from: [String]? = nil,
-        dependedBy: [String] = []
     ) {
         self.image = image
         self.build = build
@@ -497,40 +493,6 @@ public struct Service: Codable, Hashable {
         self.userns_mode = userns_mode
         self.uts = uts
         self.volumes_from = volumes_from
-        self.dependedBy = dependedBy
-    }
-
-    /// True when this service should be included by default given the currently
-    /// active profiles. Per the Compose spec: a service with no `profiles` is
-    /// always eligible; a service with `profiles` is eligible only when at least
-    /// one of them is active. This gate is bypassed entirely for services named
-    /// explicitly on the command line and for dependencies of an eligible service
-    /// (see `selectServices(from:requestedServices:activeProfiles:)`).
-    public func isProfileEligible(activeProfiles: Set<String>) -> Bool {
-        guard let profiles, !profiles.isEmpty else { return true }
-        return !Set(profiles).isDisjoint(with: activeProfiles)
-    }
-}
-
-extension Service {
-    // `env_file` accepts three forms per the Compose spec:
-    //   env_file: path.env               → single string
-    //   env_file: [path1.env, path2.env] → array of strings
-    //   env_file:                         → array of {path:, required:?} dicts (Compose 2.x extended form)
-    //     - path: optional.env
-    //       required: false
-    // Arrays may also mix plain strings and dict entries.
-    // Missing optional files (required: false) are loaded silently as empty — loadEnvFile
-    // already suppresses read errors, which is the correct behaviour for optional files.
-    public struct EnvFileEntry: Codable, Hashable {
-        public var path: String
-        public var required: Bool
-        public var tags: [String: ComposeTag?] = [:]
-
-        public init(path: String, required: Bool) {
-            self.path = path
-            self.required = required
-        }
     }
 }
 
@@ -569,177 +531,6 @@ extension Service {
     }
 }
 
-//
-//extension Array where Element == String {
-//    func merge(with otherVolumes: [Service.Secret]) -> [Service.Secret] {
-//        var result: [Service.Secret] = self
-//        for new in otherVolumes {
-//            if let firstIndex = result.firstIndex(where: {
-//                $0.target == new.target
-//            }) {
-//                result[firstIndex] = result[firstIndex].merge(with: new)
-//            } else {
-//                result.append(new)
-//            }
-//        }
-//
-//        return result
-//    }
-//}
-
-extension Service {
-
-    /// Returns the services in topological order based on `depends_on` relationships.
-    public static func topoSortConfiguredServices(
-        _ services: [(serviceName: String, service: Service)]
-    ) throws -> [(serviceName: String, service: Service)] {
-
-        var visited = Set<String>()
-        var visiting = Set<String>()
-        var sorted: [(String, Service)] = []
-
-        func visit(_ name: String, from service: String? = nil) throws {
-            guard
-                var serviceTuple = services.first(where: {
-                    $0.serviceName == name
-                })
-            else { return }
-            if let service {
-                serviceTuple.service.dependedBy.append(service)
-            }
-
-            if visiting.contains(name) {
-                throw NSError(
-                    domain: "ComposeError",
-                    code: 1,
-                    userInfo: [
-                        NSLocalizedDescriptionKey:
-                            "Cyclic dependency detected involving '\(name)'"
-                    ]
-                )
-            }
-            guard !visited.contains(name) else { return }
-
-            visiting.insert(name)
-            for depName in (serviceTuple.service.depends_on?.map(\.key) ?? []) {
-                try visit(depName, from: name)
-            }
-            visiting.remove(name)
-            visited.insert(name)
-            sorted.append(serviceTuple)
-        }
-
-        for (serviceName, _) in services {
-            if !visited.contains(serviceName) {
-                try visit(serviceName)
-            }
-        }
-
-        return sorted
-    }
-
-    /// Selects the services `up`, `build`, and `down` should act on by default,
-    /// applying both explicit service-name filtering and Compose `profiles` gating.
-    ///
-    /// Per the Compose spec, `profiles` gating is bypassed in two cases:
-    ///   - a service named explicitly in `requestedServices`
-    ///   - a service reached only as a `depends_on` dependency of an eligible
-    ///     service (its own `profiles` are ignored)
-    /// When `requestedServices` is empty, the seed set is every service that
-    /// is profile-eligible for `activeProfiles` (unprofiled, or one of its
-    /// profiles is active); dependencies of that seed are then pulled in
-    /// regardless of their own profile.
-    public static func selectServices(
-        from services: [(serviceName: String, service: Service)],
-        requestedServices: [String],
-        activeProfiles: Set<String> = []
-    ) -> [(serviceName: String, service: Service)] {
-        let servicesByName = Dictionary(
-            uniqueKeysWithValues: services.map { ($0.serviceName, $0.service) }
-        )
-
-        let seedNames: [String]
-        if !requestedServices.isEmpty {
-            seedNames = requestedServices
-        } else {
-            seedNames =
-                services
-                .filter {
-                    $0.service.isProfileEligible(activeProfiles: activeProfiles)
-                }
-                .map(\.serviceName)
-        }
-
-        var selected = Set<String>()
-
-        func include(_ serviceName: String) {
-            guard let service = servicesByName[serviceName],
-                selected.insert(serviceName).inserted
-            else {
-                return
-            }
-
-            for dependency in (service.depends_on?.map(\.key) ?? []) {
-                include(dependency)
-            }
-        }
-
-        for serviceName in seedNames {
-            include(serviceName)
-        }
-
-        return services.filter { selected.contains($0.serviceName) }
-    }
-}
-
-extension Service.EnvFileEntry: NodeConvertible {
-
-    public init(_ node: Node, envs: [String: String]) throws {
-        if let s = try node.string(envs: envs) {
-            self.path = s
-            self.required = true
-            self.tags[CodingKeys.path.stringValue] = node.composeTag
-            self.tags[CodingKeys.required.stringValue] = node.composeTag
-
-            return
-        }
-
-        guard let mapping = node.mapping else {
-            throw DecodingError.dataCorrupted(
-                .init(
-                    codingPath: [],
-                    debugDescription:
-                        "Invalid yaml data. Expected a string or a mapping."
-                )
-            )
-        }
-
-        guard
-            let path = try mapping.value(for: CodingKeys.path).string(
-                envs: envs
-            )
-        else {
-            throw DecodingError.dataCorrupted(
-                .init(
-                    codingPath: [CodingKeys.path],
-                    debugDescription:
-                        "EnvFileEntry entry must have a 'path' specified."
-                )
-            )
-        }
-        self.path = path
-        self.tags[CodingKeys.path.stringValue] = mapping.composeTag(
-            for: CodingKeys.path
-        )
-
-        let required = try? mapping.value(for: CodingKeys.required).bool
-        self.required = required ?? true
-        self.tags[CodingKeys.required.stringValue] = mapping.composeTag(
-            for: CodingKeys.required
-        )
-
-    }
-}
 extension Service: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
@@ -841,50 +632,15 @@ extension Service: NodeConvertible {
 
         // `depends_on` accepts a single string, a list of strings, or a map of
         // service name -> Dependency options (possibly null).
-        //        let dependsOnNode = try? mapping.value(for: CodingKeys.depends_on)
-        //        if let dependsOnString = try? dependsOnNode?.string(envs: envs) {
-        //            self.depends_on = [dependsOnString]
-        //            self.dependencyConditions = [dependsOnString: Dependency()]
-        //        } else if let dependsOnArray = try? dependsOnNode?.array(
-        //            of: String.self,
-        //            envs: envs
-        //        ),
-        //            !dependsOnArray.isEmpty
-        //        {
-        //            self.depends_on = dependsOnArray
-        //            self.dependencyConditions = Dictionary(
-        //                uniqueKeysWithValues: dependsOnArray.map { ($0, Dependency()) }
-        //            )
-        //        } else if let dependsOnMapping = dependsOnNode?.mapping {
-        //            var normalized: [String: Dependency] = [:]
-        //            for (key, valueNode) in dependsOnMapping {
-        //                guard let keyString = key.string else { continue }
-        //                if valueNode.null != nil {
-        //                    normalized[keyString] = Dependency()
-        //                } else {
-        //                    normalized[keyString] = try? Dependency(
-        //                        valueNode,
-        //                        envs: envs
-        //                    )
-        //                    if normalized[keyString] == nil {
-        //                        normalized[keyString] = Dependency()
-        //                    }
-        //                }
-        //            }
-        //            self.depends_on = normalized.keys.sorted()
-        //            self.dependencyConditions = normalized
-        //        } else {
-        //            self.depends_on = nil
-        //            self.dependencyConditions = nil
-        //        }
         self.depends_on = try? mapping.value(for: CodingKeys.depends_on)
             .dictionary(
                 envs: envs,
                 transformMap: { _, node in
-                    return (try? Dependency(
-                        node,
-                        envs: envs
-                    )) ?? Dependency()
+                    return
+                        (try? Dependency(
+                            node,
+                            envs: envs
+                        )) ?? Dependency()
                 },
                 transformArray: { stringArray in
                     return stringArray.toDictionary(
@@ -1230,7 +986,7 @@ extension Service: NodeConvertible {
             for: CodingKeys.expose
         )
 
-        self.extends = try? Service.ServiceExtends(
+        self.extends = try? Service.Extends(
             mapping.value(for: CodingKeys.extends),
             envs: envs
         )
@@ -1520,13 +1276,38 @@ extension Service: NodeConvertible {
     }
 }
 
-extension Array {
-    func toDictionary<T>(
-        valueType: T.Type = T.self,
-        makeValue: @escaping (Element) -> T
-    )
-        -> [Element: T]
-    {
-        Dictionary(uniqueKeysWithValues: self.map { ($0, makeValue($0)) })
+extension Service {
+    func resolvePathToAbsolute(projectDirectory: URL) -> Service {
+        var resolved = self
+        resolved.build = resolved.build?.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
+        resolved.volumes = resolved.volumes?.map({
+            $0.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        })
+
+        resolved.extends = resolved.extends?.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
+        resolved.credential_spec = resolved.credential_spec?
+            .resolvePathToAbsolute(projectDirectory: projectDirectory)
+
+        if let env_file = resolved.env_file {
+            resolved.env_file = env_file.map({ entry in
+                var resolved = entry
+                resolved.path = resolved.path.absolutePath(
+                    relativeTo: projectDirectory
+                )
+                return resolved
+            })
+        }
+
+        if let label_file = resolved.label_file {
+            resolved.label_file = label_file.map({ entry in
+                return entry.absolutePath(relativeTo: projectDirectory)
+            })
+        }
+
+        return resolved
     }
 }

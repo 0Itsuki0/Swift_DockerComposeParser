@@ -36,7 +36,7 @@ extension Encodable where Self: Decodable {
             throw ComposeError.mergeError("Fail to convert compose to dict.")
         }
 
-        let resultDict = baseDict.deepMerging(with: updateDict)
+        let resultDict = baseDict.deepMerge(with: updateDict)
 
         let mergedData = try JSONSerialization.data(withJSONObject: resultDict)
         return try decoder.decode(Self.self, from: mergedData)
@@ -73,7 +73,7 @@ extension Encodable where Self: Decodable {
 }
 
 extension Dictionary where Key == String, Value == Any {
-    func deepMerging(with update: [String: Any], upperLevelKey: String? = nil)
+    func deepMerge(with update: [String: Any], upperLevelKey: String? = nil)
         -> [String: Any]
     {
         var result = self
@@ -143,7 +143,17 @@ extension Dictionary where Key == String, Value == Any {
                 continue
             }
 
+            // new value undefined, keep the current
             if newValue is NSNull { continue }
+
+            // current value undefined: basic assignment
+            if result[key] is NSNull {
+                // top level elements such as services, volumes, and etc. should **NOT** be added as a new entry.
+                if upperLevelKey != nil {
+                    result[key] = newValue
+                }
+                continue
+            }
 
             // When merging Compose files that use the services attributes command, entrypoint and healthcheck: test, the value is overridden by the latest Compose file, and not appended.
             if ["command", "entrypoint"].contains(key) {
@@ -159,7 +169,7 @@ extension Dictionary where Key == String, Value == Any {
             if let oldDict = result[key] as? [String: Any],
                 let newDict = newValue as? [String: Any]
             {
-                result[key] = oldDict.deepMerging(
+                result[key] = oldDict.deepMerge(
                     with: newDict,
                     upperLevelKey: key
                 )

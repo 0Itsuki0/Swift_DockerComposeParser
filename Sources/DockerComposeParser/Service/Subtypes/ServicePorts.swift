@@ -55,21 +55,32 @@ extension Service {
 }
 
 extension Service.Port {
-    func merge(with other: Service.Port) -> Service.Port {
-        let old = self
-        let new = other
-        let merged = Service.Port(
-            target: new.target,
-            published: new.published ?? old.published,
-            host_ip: new.host_ip ?? old.host_ip,
-            app_protocol: new.app_protocol ?? old.app_protocol,
-            protocol: new.protocol ?? old.protocol,
-            mode: new.mode ?? old.mode,
-            name: new.name ?? old.name
-        )
+//    func merge(with other: Service.Port) -> Service.Port {
+//        let old = self
+//        let new = other
+//        let merged = Service.Port(
+//            target: new.target,
+//            published: new.published ?? old.published,
+//            host_ip: new.host_ip ?? old.host_ip,
+//            app_protocol: new.app_protocol ?? old.app_protocol,
+//            protocol: new.protocol ?? old.protocol,
+//            mode: new.mode ?? old.mode,
+//            name: new.name ?? old.name
+//        )
+//
+//        return merged
+//    }
+    func merge(with update: Service.Port) -> Service.Port {
+        guard let old = try? self.toDictionary(),
+            let new = try? update.toDictionary()
+        else {
+            return self
+        }
+        let merged = old.deepMerge(with: new)
 
-        return merged
+        return (try? Service.Port.fromDictionary(merged)) ?? self
     }
+
 }
 
 extension Array where Element == Service.Port {

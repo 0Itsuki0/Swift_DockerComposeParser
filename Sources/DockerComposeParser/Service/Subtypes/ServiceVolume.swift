@@ -5,6 +5,7 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Foundation
 import Yams
 
 /// Represents a service's usage of a secret.
@@ -364,8 +365,7 @@ extension Service.Volume {
         return raw.split(separator: ":", omittingEmptySubsequences: false)
             .map(String.init)
     }
-    
-    
+
     // MARK: - Short syntax parsing
     //
     // Grammar (informal): [SOURCE:]TARGET[:OPTIONS]
@@ -462,21 +462,31 @@ extension Service.Volume {
 }
 
 extension Service.Volume {
-    func merge(with otherVolume: Service.Volume) -> Service.Volume {
-        let oldVolume = self
-        let newVolume = otherVolume
-        let merged = Service.Volume(
-            type: newVolume.type,
-            source: newVolume.source ?? oldVolume.source,
-            target: newVolume.target,
-            read_only: newVolume.read_only ?? oldVolume.read_only,
-            bind: newVolume.bind ?? oldVolume.bind,
-            volume: newVolume.volume ?? oldVolume.volume,
-            tmpfs: newVolume.tmpfs ?? oldVolume.tmpfs,
-            consistency: newVolume.consistency ?? oldVolume.consistency
-        )
+    //    func merge(with otherVolume: Service.Volume) -> Service.Volume {
+    //        let oldVolume = self
+    //        let newVolume = otherVolume
+    //        let merged = Service.Volume(
+    //            type: newVolume.type,
+    //            source: newVolume.source ?? oldVolume.source,
+    //            target: newVolume.target,
+    //            read_only: newVolume.read_only ?? oldVolume.read_only,
+    //            bind: newVolume.bind ?? oldVolume.bind,
+    //            volume: newVolume.volume ?? oldVolume.volume,
+    //            tmpfs: newVolume.tmpfs ?? oldVolume.tmpfs,
+    //            consistency: newVolume.consistency ?? oldVolume.consistency
+    //        )
+    //
+    //        return merged
+    //    }
+    func merge(with update: Service.Volume) -> Service.Volume {
+        guard let old = try? self.toDictionary(),
+            let new = try? update.toDictionary()
+        else {
+            return self
+        }
+        let merged = old.deepMerge(with: new)
 
-        return merged
+        return (try? Service.Volume.fromDictionary(merged)) ?? self
     }
 }
 
@@ -495,5 +505,17 @@ extension Array where Element == Service.Volume {
         }
 
         return result
+    }
+}
+
+extension Service.Volume {
+    func resolvePathToAbsolute(projectDirectory: URL) -> Service.Volume {
+        var resolved = self
+        if resolved.type == .bind {
+            resolved.source = resolved.source?.absolutePath(
+                relativeTo: projectDirectory
+            )
+        }
+        return resolved
     }
 }

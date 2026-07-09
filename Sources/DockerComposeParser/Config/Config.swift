@@ -5,6 +5,7 @@
 //  Created by Itsuki on 2026/07/06.
 //
 
+import Foundation
 import Yams
 
 /// Represents a top-level config definition
@@ -75,5 +76,15 @@ extension Config: NodeConvertible {
         self.tags[CodingKeys.content.stringValue] = mapping.composeTag(
             for: CodingKeys.content
         )
+    }
+}
+
+extension Config {
+    func resolvePathToAbsolute(projectDirectory: URL) -> Config {
+        var resolved = self
+        resolved.file = resolved.file?.absolutePath(
+            relativeTo: projectDirectory
+        )
+        return resolved
     }
 }

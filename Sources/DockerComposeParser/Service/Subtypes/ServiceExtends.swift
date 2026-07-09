@@ -9,7 +9,7 @@ import Yams
 
 /// Reference to a base service definition to merge with (`extends`).
 extension Service {
-    public struct ServiceExtends: Codable, Hashable {
+    public struct Extends: Codable, Hashable {
         public var service: String
         public var file: String?
 
@@ -22,7 +22,7 @@ extension Service {
     }
 }
 
-extension Service.ServiceExtends: NodeConvertible {
+extension Service.Extends: NodeConvertible {
 
     public init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
@@ -56,5 +56,18 @@ extension Service.ServiceExtends: NodeConvertible {
         self.tags[CodingKeys.file.stringValue] = mapping.composeTag(
             for: CodingKeys.file
         )
+    }
+}
+
+
+import Foundation
+extension Service.Extends {
+    func resolvePathToAbsolute(projectDirectory: URL) -> Service.Extends
+    {
+        var resolved = self
+        resolved.file = resolved.file?.absolutePath(
+            relativeTo: projectDirectory
+        )
+        return resolved
     }
 }
