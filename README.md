@@ -6,6 +6,36 @@ A Swift parser for Docker Compose files.
 > This parser only supports the Compose file format as documented by Docker as of **Jul. 11, 2026**.
 
 
+## Installation
+ 
+### Xcode
+ 
+File ▸ Add Package Dependencies… and enter the repository URL:
+ 
+```
+https://github.com/0Itsuki0/Swift_DockerComposeParser.git
+```
+ 
+Select a version rule (e.g. up to the next major version), then add `DockerComposeParser` to your target.
+ 
+### Package.swift
+ 
+Add it to your `Package.swift` file's dependencies:
+ 
+```swift
+dependencies: [
+    .package(url: "https://github.com/0Itsuki0/Swift_DockerComposeParser.git", branch: "main")
+]
+```
+ 
+Then add `DockerComposeParser` to your target's dependencies:
+ 
+```swift
+.target(
+    name: "YourTarget",
+    dependencies: ["DockerComposeParser"]
+)
+```
 
 ## Usage
 
