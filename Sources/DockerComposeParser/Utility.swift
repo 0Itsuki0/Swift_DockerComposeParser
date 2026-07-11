@@ -10,6 +10,8 @@ import Yams
 
 public enum Utility {
 
+    static let projectNameVar = "COMPOSE_PROJECT_NAME"
+
     /// Resolve variables contained in a YAML string
     public static func resolveVariable(
         _ value: String,
@@ -222,6 +224,14 @@ public enum Utility {
         if !compose.compactMap(\.networks).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate networks name found")
         }
+    }
+
+    // try to get the top level name element of the compose as we will need to add the `COMPOSE_PROJECT_NAME` as an environment when load the full compose
+    static func getComposeName(node: Node) -> String? {
+        guard let mapping = node.mapping else {
+            return nil
+        }
+        return mapping["name"]?.string
     }
 
 }

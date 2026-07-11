@@ -249,6 +249,26 @@ struct DockerComposeTestSuite {
         }
     }
 
+    @Test(
+        "Test DockerCompose parsing - name defined as used as an env using the default `COMPOSE_PROJECT_NAME`"
+    )
+    func parseWithNameEnv() throws {
+        let yaml = """
+            name: myapp
+            services:
+              foo:
+                image: busybox
+                command: echo "I'm running ${COMPOSE_PROJECT_NAME}"
+            """
+        // NOTE: not using the node initializer here as we will be checking whether if the `COMPOSE_PROJECT_NAME` env is resolved correctly within the DockerCompose(string...) function
+        let compose = try DockerCompose(string: yaml, envs: [:])
+        #expect(compose.name == "myapp")
+        #expect(
+            compose.services["foo"]??.command == ["echo \"I'm running myapp\""]
+        )
+
+    }
+
     @Test("Test DockerCompose parsing - full realistic compose file")
     func parseFullCompose() throws {
         let yaml = """
