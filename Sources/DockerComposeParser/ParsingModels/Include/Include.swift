@@ -9,6 +9,13 @@ import Foundation
 import Playgrounds
 import Yams
 
+// TODO: - Handle Remote Compose file
+// https://docs.docker.com/compose/how-tos/multiple-compose-files/include/
+// ex:
+// include:
+//   - oci://docker.io/username/my-compose-app:latest # use a Compose file stored as an OCI artifact
+
+///
 /// A single entry in the top-level `include` element, referencing another
 /// Compose file (or files) to be loaded and merged into this Compose
 /// application's model.
@@ -34,10 +41,18 @@ public struct Include: Codable, Hashable {
     /// Compose model. Normalized to a list even when written as a single string.
     /// When more than one path is given, those files are merged together to
     /// define the included Compose model.
+    ///
+    /// paths defined here are relative to the **main** compose
     public var path: [String]
 
     /// Base path used to resolve relative paths set in the included Compose
-    /// file. Defaults to the directory of the included Compose file when omitted.
+    /// file.
+    /// Does not effect the path above or the env_file below
+    /// Defaults to the directory of the included Compose file when omitted.
+    ///
+    /// when defined, path Relative to the **main** compose
+    /// when not defined, defaults to the directory of the included Compose files above.
+    /// if multiple paths are defined, directory of the first path.
     public var project_directory: String?
 
     /// Environment file(s) providing default values when interpolating
@@ -45,6 +60,8 @@ public struct Include: Codable, Hashable {
     /// written as a single string. Defaults to `.env` in `project_directory`
     /// when omitted. The local project's environment takes precedence over
     /// these values.
+    ///
+    /// paths defined here are relative to the **main** compose
     public var env_file: [String]?
 
     // key : tag
@@ -141,82 +158,74 @@ extension Include: NodeConvertible {
 }
 
 extension Include {
+    func resolvePathToAbsolute(projectDirectory: URL) -> Include {
+        var resolved = self
+        resolved.path = resolved.path.map({
+            if Utility.isLocalPath($0) {
+                return $0.absolutePath(relativeTo: projectDirectory)
+            }
+            return $0
+        })
+        resolved.project_directory = resolved.project_directory?.absolutePath(
+            relativeTo: projectDirectory
+        )
+        resolved.env_file = resolved.env_file?.map({
+            $0.absolutePath(relativeTo: projectDirectory)
+        })
+        return resolved
+    }
+}
+
+extension Include {
     // Project directory is to be used for resolving any relative path contained within the included compose file.
     // ie: the env_file property should NOT be resolved based on this
-    private func resolveProjectDirectoryURL(overrideComposeDirectory: URL)
+    // NOTE: Assume the resolvePathToAbsolute already called
+    private func resolveProjectDirectoryURL()
         -> URL?
     {
         if let projectDirectory = self.project_directory {
             return URL(
-                filePath: projectDirectory,
-                relativeTo: overrideComposeDirectory
+                filePath: projectDirectory
             )
         }
 
         guard let first = self.path.first else {
             return nil
         }
-
-        return URL(filePath: first, relativeTo: overrideComposeDirectory)
-            .deletingLastPathComponent()
+        // fall back to the first path
+        return URL(filePath: first).deletingLastPathComponent()
     }
 
-    func resolve(
-        overrideComposeDirectory: URL,
-        overrideCompose: DockerCompose,
-        overrideEnvs: [String: String]
+    // Load included compose
+    // NOTE:
+    // 1. this function does NOT apply any overrides that the main compose that might have
+    // 2. called after resolving all the relative URLs, ie: after calling resolvePathToAbsolute
+    // 3. Not merging the included compose to a single one as they will need to go through uniqueness check as well as merge any overrides that the main compose main have
+    func load(
+        mainEnvs: [String: String]
     ) throws
         -> [DockerCompose]
     {
         guard
-            let baseURL = self.resolveProjectDirectoryURL(
-                overrideComposeDirectory: overrideComposeDirectory
-            )
+            let baseURL = self.resolveProjectDirectoryURL()
         else {
             throw ComposeError.failToResolveProjectURL
         }
 
-        var envFiles = (self.env_file ?? []).map {
-            // the override compose (main compose) directory instead of the project directory defined by base URL
-            URL(filePath: $0, relativeTo: overrideComposeDirectory)
-        }
-
-        if envFiles.isEmpty {
-            // It defaults to .env file in the project_directory for the Compose file being parsed.
-            envFiles.append(URL(filePath: ".env", relativeTo: baseURL))
-        }
-
-        envFiles = envFiles.filter({
-            FileManager.default.fileExists(atPath: $0.path())
-        })
-
-        var envs: [[String: String]] = try envFiles.map({
-            try Utility.loadEnvFile($0)
-        })
-        // overrideEnvs comes last for the highest priority
-        envs.append(overrideEnvs)
-        var resolvedEnvs: [String: String] = envs.first ?? [:]
-        for env in envs.dropFirst() {
-            // NOTE: not using deepMerging as we already knew the value is a String
-            resolvedEnvs = resolvedEnvs.merging(env) { (current, new) in new }
+        let envFiles = (self.env_file ?? []).map {
+            URL(filePath: $0)
         }
 
         let includePaths = self.path.map {
-            URL(
-                filePath: $0,
-                relativeTo: baseURL
-            )
+            URL(filePath: $0)
         }
 
         let composes = try includePaths.map({
-            // TODO: instead of deep merging the entire overrideCompose,
-            // filter for filters, volumes, networks, and etc to only include those ones that included in the resolved compose
-            return try DockerCompose(
-                url: $0,
-                envs: resolvedEnvs,
-                //                projectDirectory: baseURL
-            ).deepMerge(
-                with: overrideCompose
+            // NOTE: not using  try DockerCompose(...) so that any includes/service extend within the included compose can be resolved automatically
+            return try ComposeParser.loadCompose(
+                $0,
+                envFiles: envFiles,
+                projectDirectory: baseURL,
             )
         })
 
@@ -224,76 +233,3 @@ extension Include {
     }
 
 }
-
-// no need to deepMerge the full thing here because we only want to apply updates on individual services, volume, and etc only if they are present in the overrideCompose.
-//            var compose = try DockerCompose(url: $0, envs: resolvedEnvs)
-//            let composeServices = compose.services
-//            for (name, overrideService) in overrideCompose.services {
-//                guard composeServices.contains(where: { $0.key == name }) else {
-//                    continue
-//                }
-//                if let currentService = composeServices[name] {
-//                    let merged = try currentService.deepMerge(with: overrideService)
-//                    compose.services[name] = merged
-//                } else {
-//                    compose.services[name] = overrideService
-//                }
-//            }
-//
-//            let composeVolume = compose.volumes
-//            for (name, overrideVolume) in overrideCompose.volumes ?? [:]  {
-//                guard composeVolume.contains(where: { $0.key == name }) else {
-//                    continue
-//                }
-//                if let currentService = composeServices[name] {
-//                    let merged = try currentService.deepMerge(with: overrideService)
-//                    compose.services[name] = merged
-//                } else {
-//                    compose.services[name] = overrideService
-//                }
-//            }
-//
-//            let composeModels = compose.models
-//            for (name, service) in overrideCompose.models ?? [:] {
-//                guard composeServices.contains(where: { $0.key == name }) else {
-//                    continue
-//                }
-//                if let currentService = composeServices[name] {
-//                    let merged = try currentService.deepMerge(with: overrideService)
-//                    compose.services[name] = merged
-//                } else {
-//                    compose.services[name] = overrideService
-//                }
-//
-//            }
-//
-//            for (name, service) in overrideCompose.networks ?? [:] {
-//
-//            }
-//
-//            for (name, service) in overrideCompose.configs ?? [:] {
-//
-//            }
-//
-//            for (name, service) in overrideCompose.secrets ?? [:] {
-//
-//            }
-
-//
-//extension Dictionary where Key == String, Value == Service {
-//    func deepMerge(with update: [String: Service]) -> [String: Service] {
-//        for (name, overrideService) in overrideCompose.services {
-//            guard composeServices.contains(where: { $0.key == name }) else {
-//                continue
-//            }
-//            if let currentService = composeServices[name] {
-//                let merged = try currentService.deepMerge(with: overrideService)
-//                compose.services[name] = merged
-//            } else {
-//                compose.services[name] = overrideService
-//            }
-//        }
-//
-//
-//    }
-//}

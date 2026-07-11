@@ -1283,25 +1283,21 @@ extension Service {
     // the `services` parameter here needs both  defined in the current compose as well as those in the `include`
     // 2. Assume being called after the resolvePathToAbsolute above so that the extend.file is already an absolute URL.
     public func resolveExtends(
-        resolveInLoaded: () throws -> Service,
-        resolveInFile: (URL) throws -> Service,
-        //        selfName: String,
+        resolveInLoaded: (String) throws -> Service,
+        resolveInFile: (String, URL) throws -> Service,
     ) throws -> Service {
         guard let extend = self.extends else {
             return self
         }
-        //        guard extend.service != selfName else {
-        //            throw ComposeError.invalidExtends("Service extending cannot be the same as the service being extended.")
-        //        }
 
         guard let file = extend.file else {
-            let loaded = try resolveInLoaded()
+            let loaded = try resolveInLoaded(extend.service)
             let merged = try loaded.deepMerge(with: self)
             return merged
         }
 
         let fileURL = URL(filePath: file)
-        let loaded = try resolveInFile(fileURL)
+        let loaded = try resolveInFile(extend.service, fileURL)
         let merged = try loaded.deepMerge(with: self)
         return merged
     }

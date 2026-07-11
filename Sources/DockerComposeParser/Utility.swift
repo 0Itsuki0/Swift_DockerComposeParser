@@ -17,7 +17,8 @@ extension Array where Element == String {
 
 extension Array where Element == [String: Any] {
     var allKeyUnique: Bool {
-        Set(self.flatMap(\.keys)).count == count
+        let keys = self.flatMap(\.keys)
+        return Set(keys).count == keys.count
     }
 }
 
@@ -25,7 +26,6 @@ public enum Utility {
 
     public static func checkIncludeUniqueness(_ compose: [DockerCompose]) throws
     {
-
         if !compose.compactMap(\.services).allKeyUnique {
             throw ComposeError.invalidInclude("Duplicate service name found")
         }
@@ -93,6 +93,43 @@ public enum Utility {
         return resolvedValue
     }
 
+    public static func loadProjectEnvFiles(
+        _ envFiles: [URL],
+        projectDirectory: URL
+    ) throws
+        -> [String: String]
+    {
+        var allEnvFiles = envFiles
+        guard
+            allEnvFiles.allSatisfy({
+                FileManager.default.fileExists(atPath: $0.path())
+            })
+        else {
+            throw ComposeError.envFailToResolve(
+                "Env files specified not found."
+            )
+        }
+
+        if allEnvFiles.isEmpty {
+            allEnvFiles.append(
+                URL(filePath: ".env", relativeTo: projectDirectory)
+            )
+        }
+        let envs: [[String: String]] = try allEnvFiles.filter({
+            FileManager.default.fileExists(atPath: $0.path())
+        }).map({
+            try loadEnvFile($0)
+        })
+
+        var resolvedEnvs: [String: String] = envs.first ?? [:]
+        for env in envs.dropFirst() {
+            // NOTE: not using deepMerging as we already knew the value is a String
+            resolvedEnvs = resolvedEnvs.merging(env) { (current, new) in new }
+        }
+
+        return resolvedEnvs
+    }
+
     public static func loadEnvFile(_ fileURL: URL) throws -> [String: String] {
         let content = try String(contentsOf: fileURL, encoding: .utf8)
         let lines = content.split(separator: "\n").map(String.init)
@@ -134,7 +171,7 @@ public enum Utility {
         return dict
 
     }
-    
+
     public static func isLocalPath(_ string: String) -> Bool {
         let string = string.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -148,14 +185,14 @@ public enum Utility {
             let scheme = url.scheme?.lowercased()
         {
             switch scheme {
-            case "http", "https", "git", "ssh":
+            case "http", "https", "git", "ssh", "type", "docker-image", "oci":
                 return false
             default:
                 break
             }
         }
 
-        if string.starts(with: "type://") || string.starts(with: "service:")
+        if string.starts(with: "service:")
             || string.starts(with: "docker-image://")
         {
             return false
@@ -176,12 +213,14 @@ extension Array {
     }
 }
 
-
 extension String {
     func absolutePath(relativeTo: URL) -> String {
         // to handle the case where the relativeTo is missing the trailing slash and the URL(filePath:) will treat it as a file instead of directory
-        let baseDirectory = relativeTo.standardizedFileURL
-            .appendingPathComponent("", isDirectory: true)
+        let baseDirectory =
+            relativeTo.hasDirectoryPath
+            ? relativeTo
+            : relativeTo.standardizedFileURL
+                .appendingPathComponent("", isDirectory: true)
         return URL(filePath: self, relativeTo: baseDirectory).path()
     }
 }

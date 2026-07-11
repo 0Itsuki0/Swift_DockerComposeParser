@@ -30,10 +30,13 @@ public struct DockerCompose: Codable {
 
     /// Optional top-level volume definitions
     public var volumes: [String: DockerComposeParser.Volume?]?
+
     /// Optional top-level network definitions
     public var networks: [String: DockerComposeParser.Network?]?
+
     /// Optional top-level config definitions (primarily for Swarm)
     public var configs: [String: DockerComposeParser.Config?]?
+
     /// Optional top-level secret definitions (primarily for Swarm)
     public var secrets: [String: DockerComposeParser.Secret?]?
 
@@ -62,7 +65,6 @@ public struct DockerCompose: Codable {
             string: dockerComposeString,
             envs: envs,
         )
-
     }
 
     public init(string: String, envs: [String: String])
@@ -99,54 +101,6 @@ public struct DockerCompose: Codable {
         self.networks = networks
         self.configs = configs
         self.secrets = secrets
-    }
-
-    // returning: included compose to be built, after applying any override applied by the base (main)
-    public func resolveIncludes(composeDirectory: URL, envs: [String: String])
-        throws
-        -> [DockerCompose]
-    {
-        var resolvedComposes: [DockerCompose] = try (self.include ?? [])
-            .flatMap({
-                try $0.resolve(
-                    overrideComposeDirectory: composeDirectory,
-                    overrideCompose: self,
-                    overrideEnvs: envs
-                )
-            })
-
-        // loop through resolvedComposes for nested includes
-        //        for compose in resolvedComposes {
-        //            let nestedResult = try compose.resolveIncludes(
-        //                composeDirectory: compose.projectDirectoryURL,
-        //                envs: envs
-        //            )
-        //            resolvedComposes.append(contentsOf: nestedResult)
-        //        }
-        //
-        //        // check unique
-        //        try Utility.checkIncludeUniqueness(resolvedComposes.map(\.compose))
-        return resolvedComposes
-    }
-
-    public func resolveExtends(composeDirectory: URL) {
-        //        self.services.ser
-    }
-
-    // NOTE: not resolving for include here as it will be handled individually to resolve for a full Compose
-    func resolvePathToAbsolute(projectDirectory: URL) -> DockerCompose {
-        var resolved = self
-        resolved.services = self.services.mapValues({
-            $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
-        })
-        resolved.configs = self.configs?.mapValues({
-            $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
-        })
-
-        resolved.secrets = self.secrets?.mapValues({
-            $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
-        })
-        return resolved
     }
 }
 
@@ -286,61 +240,217 @@ extension DockerCompose: NodeConvertible {
     }
 }
 
-//public struct ResolvedCompose: Codable {
-//    // compose after resolving all relative path (except for include as it will be loaded as another ResolvedCompose)
-//    public var compose: DockerCompose
-//    public var envs: [String: String]
-//    public var projectDirectoryURL: URL
-//}
+extension DockerCompose {
 
-enum ComposeError: Error, LocalizedError {
-    case envFailToResolve(String?)
-    case mergeError(String?)
-    case fileNotFound
-    case invalidFileData
-    case invalidInclude(String?)
-    case invalidExtends(String?)
-    case failToResolveVar(String?)
-    case failToResolveProjectURL
+    func resolvePathToAbsolute(projectDirectory: URL) -> DockerCompose {
+        var resolved = self
+        resolved.services = self.services.mapValues({
+            $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        })
+        resolved.configs = self.configs?.mapValues({
+            $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        })
 
-    var errorDescription: String? {
-        switch self {
-        case .failToResolveProjectURL:
-            return "Fail to resolve project url for the included compose file."
-        case .envFailToResolve(let message):
-            return "Environment variables cannot be resolved. \(message ?? "")"
-        case .mergeError(let message):
-            return "Error merging composes. \(message ?? "")"
-        case .fileNotFound:
-            return "Compose file not found"
-        case .invalidExtends(let message):
-            return "Invalid extends attributes in service. \(message ?? "")"
-        case .invalidFileData:
-            return "Invalid compose file data"
-        case .invalidInclude(let message):
-            return "Invalid includes attributes. \(message ?? "")"
-        case .failToResolveVar(let message):
-            return "Fail to resolve variable. \(message ?? "")"
+        resolved.secrets = self.secrets?.mapValues({
+            $0?.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        })
+        resolved.include = self.include?.map({
+            $0.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        })
+        return resolved
+    }
+
+    func loadIncludes(mainEnvs: [String: String]) throws -> [DockerCompose] {
+        guard let include = self.include?.filter({ !$0.path.isEmpty }),
+            !include.isEmpty
+        else {
+            return []
+        }
+        let loaded = try include.map({ try $0.load(mainEnvs: mainEnvs) })
+        return loaded.flatMap({ $0 })
+    }
+
+    // helper function for removing resource from the base that are already contained in the `containedIn` compose
+    func removeResources(
+        containedIn compose: DockerCompose
+    ) -> DockerCompose {
+        var resolved = self
+        resolved.models = resolved.models?.removeDuplicateKeys(
+            in: compose.models ?? [:]
+        )
+
+        resolved.services = resolved.services.removeDuplicateKeys(
+            in: compose.services
+        )
+
+        resolved.volumes = resolved.volumes?.removeDuplicateKeys(
+            in: compose.volumes ?? [:]
+        )
+
+        resolved.networks = resolved.networks?.removeDuplicateKeys(
+            in: compose.networks ?? [:]
+        )
+
+        resolved.configs = resolved.configs?.removeDuplicateKeys(
+            in: compose.configs ?? [:]
+        )
+
+        resolved.secrets = resolved.secrets?.removeDuplicateKeys(
+            in: compose.secrets ?? [:]
+        )
+
+        return resolved
+    }
+
+    // merge by resource key only. As oppose to deep merge looping through the nested property as well
+    func simpleMerge(with compose: DockerCompose) -> DockerCompose {
+        var finalCompose = self
+        finalCompose.services.merge(
+            compose.services,
+            uniquingKeysWith: { _, new in new }
+        )
+        finalCompose.models?.merge(
+            compose.models ?? [:],
+            uniquingKeysWith: { _, new in new }
+        )
+        finalCompose.networks?.merge(
+            compose.networks ?? [:],
+            uniquingKeysWith: { _, new in new }
+        )
+        finalCompose.volumes?.merge(
+            compose.volumes ?? [:],
+            uniquingKeysWith: { _, new in new }
+        )
+        finalCompose.secrets?.merge(
+            compose.secrets ?? [:],
+            uniquingKeysWith: { _, new in new }
+        )
+        finalCompose.configs?.merge(
+            compose.configs ?? [:],
+            uniquingKeysWith: { _, new in new }
+        )
+
+        return finalCompose
+    }
+
+    public func resolveServiceExtends(
+        resolveInFile: (String, URL) throws -> Service,
+    ) throws -> DockerCompose {
+        var finalCompose = self
+
+        for (name, service) in finalCompose.services {
+            let resolvedService = try service?.resolveExtends(
+                resolveInLoaded: { serviceName in
+                    // assuming self.services already merged
+                    guard let optional = finalCompose.services[serviceName],
+                        let service = optional
+                    else {
+                        throw ComposeError.invalidExtends(
+                            "Service: \(serviceName) not found."
+                        )
+                    }
+                    return service
+                },
+                resolveInFile: { serviceName, url in
+                    try resolveInFile(serviceName, url)
+                }
+            )
+
+            finalCompose.services[name] = resolvedService
+        }
+        return finalCompose
+    }
+
+    // assume being called after merging with all includes
+    public func validateDependency() throws {
+        let serviceWithRequiredDependOn: [String: Service?] = self.services
+            .filter({ (key, value) in
+                guard let depends_on = value?.depends_on, !depends_on.isEmpty
+                else {
+                    return false
+                }
+                return true
+            })
+
+        let dependedOnServices: [[(String, Bool)]] = serviceWithRequiredDependOn
+            .values.map({ service in
+                guard let service else {
+                    return []
+                }
+                return service.depends_on?.map({
+                    ($0.key, $0.value?.required ?? true)
+                }) ?? []
+            })
+
+        var errorServices: [String] = []
+        var warningServices: [String] = []
+        for (service, required) in dependedOnServices.flatMap({ $0 }) {
+            if self.services.keys.contains(service) {
+                continue
+            }
+            if required {
+                errorServices.append(service)
+                continue
+            }
+
+            warningServices.append(service)
+        }
+
+        if !errorServices.isEmpty || !warningServices.isEmpty {
+            throw ComposeError.dependencyNotFound(
+                required: errorServices,
+                warning: warningServices
+            )
         }
     }
 }
 
-public func loadCompose(
-    _ composeURL: URL,
-    envs: [String: String],
-) throws -> [DockerCompose] {
-    let projectDirectory = composeURL.deletingLastPathComponent()
-    var baseCompose = try DockerCompose.init(url: composeURL, envs: envs)
-    baseCompose = baseCompose.resolvePathToAbsolute(
-        projectDirectory: projectDirectory
+
+extension Dictionary where Key == String {
+    // remove keys in the base dict that is container in the dict
+    func removeDuplicateKeys(in dict: Self) -> Self {
+        return self.filter({ v in
+            dict.contains(where: { $0.key == v.key }) == false
+        })
+    }
+
+    func keepDuplicateKeys(in dict: Self) -> Self {
+        return self.filter({ v in
+            dict.contains(where: { $0.key == v.key })
+        })
+    }
+}
+
+// Helper function for filtering the overrideCompose to only include those resources declared within the base for applying deep merging
+func createOverrideCompose(base: DockerCompose, overrideCompose: DockerCompose)
+    -> DockerCompose
+{
+    var finalOverride = overrideCompose
+    finalOverride.include = nil
+
+    finalOverride.services = finalOverride.services.keepDuplicateKeys(
+        in: base.services
     )
 
-    // TODO: -
-    // 1. resolve path
-    // 2. load include
-    // 3. remove override services, volumes, and etc.from baseCompose
-    // 4. resolve extend
-    // 5. validate all service depending on are included
+    finalOverride.models = finalOverride.models?.keepDuplicateKeys(
+        in: base.models ?? [:]
+    )
 
-    return [baseCompose]
+    finalOverride.volumes = finalOverride.volumes?.keepDuplicateKeys(
+        in: base.volumes ?? [:]
+    )
+
+    finalOverride.networks = finalOverride.networks?.keepDuplicateKeys(
+        in: base.networks ?? [:]
+    )
+
+    finalOverride.configs = finalOverride.configs?.keepDuplicateKeys(
+        in: base.configs ?? [:]
+    )
+
+    finalOverride.secrets = finalOverride.secrets?.keepDuplicateKeys(
+        in: base.secrets ?? [:]
+    )
+
+    return finalOverride
 }

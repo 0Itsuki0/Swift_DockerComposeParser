@@ -8,13 +8,14 @@
 import Foundation
 import Yams
 
+// MARK: - Deep Merging
+// 1. Handle compose tags such as reset or override
+// 2. merging any nested properties
+
 extension Encodable where Self: Decodable {
     public func deepMerge(with update: Self)
         throws -> Self
     {
-        let encoder = JSONEncoder()
-        let decoder = JSONDecoder()
-
         // This structural map is now ONLY used as a structural topology template,
         // because we intercept the data processing steps using the type system below.
         guard
@@ -23,12 +24,11 @@ extension Encodable where Self: Decodable {
         else {
             throw ComposeError.mergeError("Fail to convert compose to dict.")
         }
-        print("updateDict", updateDict)
 
         let resultDict = baseDict.deepMerge(with: updateDict)
 
         let mergedData = try JSONSerialization.data(withJSONObject: resultDict)
-        return try decoder.decode(Self.self, from: mergedData)
+        return try JSONDecoder().decode(Self.self, from: mergedData)
     }
 
     static func fromDictionary(_ dictionary: [String: Any]) throws -> Self {
@@ -75,7 +75,6 @@ extension Dictionary where Key == String, Value == Any {
             }
             return nil
         }).filter({ $0.value != nil })
-        print("Tags: \(tags) for update \(update.keys)")
 
         // Process tags first because JSON.serialization will drop null (new value) automatically, and loop through the update won't resolve the tags for those keys as they are not present.
         for (key, tag) in tags {

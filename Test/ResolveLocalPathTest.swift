@@ -781,7 +781,9 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
 
         #expect(
             compose.services["web"]??.build?.context
@@ -798,7 +800,9 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
 
         #expect(compose.services.keys.contains("worker"))
         if let workerValue = compose.services["worker"] {
@@ -818,7 +822,9 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
 
         #expect(
             compose.configs?["app_config"]??.file
@@ -833,7 +839,9 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
 
         #expect(compose.configs == nil)
     }
@@ -853,7 +861,9 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
 
         #expect(
             compose.secrets?["my_secret"]??.file
@@ -868,26 +878,69 @@ struct ResolveLocalPathTestTestSuite {
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
 
         #expect(compose.secrets == nil)
     }
 
     @Test(
-        "Test DockerCompose resolvePathToAbsolute - include is left untouched"
+        "Test DockerCompose resolvePathToAbsolute - include resolved"
     )
-    func resolveDockerComposePathToAbsoluteIncludeUntouched() {
+    func resolveDockerComposePathToAbsoluteInclude() {
         var compose = DockerCompose(
-            include: [Include(path: ["../commons/compose.yaml"])],
+            include: [
+                Include(
+                    path: ["../commons/compose.yaml"],
+                    project_directory: "..",
+                    env_file: ["../commons/.env"]
+                )
+            ],
             services: [:]
         )
         let projectDirectory = URL(
             fileURLWithPath: "/Users/me/myproject",
             isDirectory: true
         )
-        compose = compose.resolvePathToAbsolute(projectDirectory: projectDirectory)
+        compose = compose.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
 
-        #expect(compose.include?.first?.path == ["../commons/compose.yaml"])
+        #expect(
+            compose.include?.first?.path == ["/Users/me/commons/compose.yaml"]
+        )
+        #expect(
+            compose.include?.first?.project_directory == "/Users/me/"
+        )
+        #expect(
+            compose.include?.first?.env_file == ["/Users/me/commons/.env"]
+        )
+    }
+
+    @Test(
+        "Test DockerCompose resolvePathToAbsolute - include remote path untouched"
+    )
+    func resolveDockerComposePathToAbsoluteIncludeRemotePathUntouched() {
+        var compose = DockerCompose(
+            include: [
+                Include(
+                    path: ["oci://docker.io/username/my-compose-app:latest"],
+                )
+            ],
+            services: [:]
+        )
+        let projectDirectory = URL(
+            fileURLWithPath: "/Users/me/myproject",
+            isDirectory: true
+        )
+        compose = compose.resolvePathToAbsolute(
+            projectDirectory: projectDirectory
+        )
+
+        #expect(
+            compose.include?.first?.path == ["oci://docker.io/username/my-compose-app:latest"]
+        )
     }
 
 }

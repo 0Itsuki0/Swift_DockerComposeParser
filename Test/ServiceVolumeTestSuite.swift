@@ -81,7 +81,7 @@ struct ServiceVolumeTestSuite {
     func short_invalid(_ yaml: String) throws {
         let node = try Yams.compose(yaml: yaml)
         #expect(throws: (any Error).self) {
-            let result = try Service.Volume(node!, envs: [:])
+            let _ = try Service.Volume(node!, envs: [:])
         }
     }
 
