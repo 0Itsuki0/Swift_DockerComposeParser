@@ -124,7 +124,7 @@ public enum ComposeParser {
         validateDependency: Bool
     ) throws -> DockerCompose {
         guard composeURL.isFileURL else {
-            throw ComposeError.invalidURL("Compose URL is not a file URL.")
+            throw ComposeError.invalidURL("Compose URL is not a file URL. Remote compose is not supported.")
         }
 
         guard FileManager.default.fileExists(atPath: composeURL.path()) else {
@@ -151,7 +151,7 @@ public enum ComposeParser {
         var resolvedIncludes: [DockerCompose] = []
         for includedCompose in includedComposes {
             // 4. filter main for service, volumes, networks, and etc to only include those defined within the included compose
-            let overrideCompose = createOverrideCompose(
+            let overrideCompose = Utility.createOverrideCompose(
                 base: includedCompose,
                 overrideCompose: baseCompose
             )

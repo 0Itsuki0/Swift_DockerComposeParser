@@ -7,6 +7,6 @@
 
 import Yams
 
-public protocol NodeConvertible {
+protocol NodeConvertible {
     init(_ node: Node, envs: [String: String]) throws
 }

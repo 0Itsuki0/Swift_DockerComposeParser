@@ -58,7 +58,7 @@ extension Service {
 
 extension Service.Deploy: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -163,7 +163,7 @@ extension Service {
 
 extension Service.DeployPlacement: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -212,7 +212,7 @@ extension Service {
 
 extension Service.DeployPlacementPreference: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -272,7 +272,7 @@ extension Service {
 
 extension Service.DeployUpdateConfig: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -365,7 +365,7 @@ extension Service {
 
 extension Service.DeployRollbackConfig: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(

@@ -104,7 +104,7 @@ extension Service {
 extension Service.Build: NodeConvertible {
 
     // Custom initializer to handle `build: .` (string) or `build: { context: . }` (object)
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         if let contextString = try node.string(envs: envs) {
             self.context = contextString
             self.tags[CodingKeys.context.stringValue] = node.composeTag
@@ -330,7 +330,7 @@ extension Service.Build {
 
 extension Service.Build.CacheEntry: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let raw = try node.string(envs: envs) else {
             throw DecodingError.dataCorrupted(
                 .init(

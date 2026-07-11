@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Playgrounds
 import Yams
 
 // TODO: - Handle Remote Compose file
@@ -15,7 +14,7 @@ import Yams
 // include:
 //   - oci://docker.io/username/my-compose-app:latest # use a Compose file stored as an OCI artifact
 
-///
+
 /// A single entry in the top-level `include` element, referencing another
 /// Compose file (or files) to be loaded and merged into this Compose
 /// application's model.
@@ -80,7 +79,7 @@ public struct Include: Codable, Hashable {
 
 extension Include: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         // Short syntax: the entry is just a bare path string.
         if let string = try node.string(envs: envs) {
             self.path = [string]
@@ -153,7 +152,6 @@ extension Include: NodeConvertible {
         //   env_file: ../another/.env
         self.env_file = try envValue?.array(envs: envs)
         self.tags[CodingKeys.env_file.stringValue] = envValue?.composeTag
-
     }
 }
 
@@ -174,9 +172,7 @@ extension Include {
         })
         return resolved
     }
-}
-
-extension Include {
+    
     // Project directory is to be used for resolving any relative path contained within the included compose file.
     // ie: the env_file property should NOT be resolved based on this
     // NOTE: Assume the resolvePathToAbsolute already called
@@ -231,5 +227,4 @@ extension Include {
 
         return composes
     }
-
 }

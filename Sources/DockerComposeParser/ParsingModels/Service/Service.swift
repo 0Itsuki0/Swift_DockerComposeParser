@@ -6,8 +6,6 @@
 //
 
 import Foundation
-//
-import Playgrounds
 import Yams
 
 /// Represents a single service definition within the `services` section.
@@ -498,7 +496,7 @@ public struct Service: Codable, Hashable {
 
 extension Service: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -1282,7 +1280,7 @@ extension Service {
     // 1. need to be called after resolving all includes because
     // the `services` parameter here needs both  defined in the current compose as well as those in the `include`
     // 2. Assume being called after the resolvePathToAbsolute above so that the extend.file is already an absolute URL.
-    public func resolveExtends(
+    func resolveExtends(
         resolveInLoaded: (String) throws -> Service,
         resolveInFile: (String, URL) throws -> Service,
     ) throws -> Service {

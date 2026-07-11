@@ -22,7 +22,7 @@ extension Service {
 
 extension Service.Develop: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(

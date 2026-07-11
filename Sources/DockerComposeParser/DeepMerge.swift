@@ -13,7 +13,7 @@ import Yams
 // 2. merging any nested properties
 
 extension Encodable where Self: Decodable {
-    public func deepMerge(with update: Self)
+    func deepMerge(with update: Self)
         throws -> Self
     {
         // This structural map is now ONLY used as a structural topology template,

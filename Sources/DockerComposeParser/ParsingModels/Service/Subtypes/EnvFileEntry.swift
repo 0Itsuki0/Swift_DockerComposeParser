@@ -31,7 +31,7 @@ extension Service {
 
 extension Service.EnvFileEntry: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         if let s = try node.string(envs: envs) {
             self.path = s
             self.required = true

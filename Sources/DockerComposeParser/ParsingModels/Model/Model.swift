@@ -45,7 +45,7 @@ public struct Model: Codable, Hashable {
 import Yams
 extension Model: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(

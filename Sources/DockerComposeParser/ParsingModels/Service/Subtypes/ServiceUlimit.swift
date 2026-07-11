@@ -31,7 +31,7 @@ extension Service {
 
 extension Service.Ulimit: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         if let single = try? node.int(envs: envs) {
             self.soft = single
             self.hard = single

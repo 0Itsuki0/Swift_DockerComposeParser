@@ -26,7 +26,7 @@ extension Service {
 
 extension Service.GPU: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         if let flag = try node.string(envs: envs), flag == "all" {
             self.all = true
             self.devices = nil

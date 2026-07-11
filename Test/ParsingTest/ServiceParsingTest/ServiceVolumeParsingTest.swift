@@ -5,17 +5,10 @@
 //  Created by Itsuki on 2026/07/08.
 //
 
-
-//
-//  ServiceVolumeTests.swift
-//  DockerComposeParser
-//
-//  Created by Itsuki on 2026/07/08.
-//
-
-@testable import DockerComposeParser
 import Testing
 import Yams
+
+@testable import DockerComposeParser
 
 @Suite("Service.Volume Parsing Tests")
 struct ServiceVolumeTestSuite {
@@ -43,7 +36,9 @@ struct ServiceVolumeTestSuite {
 
     @Test("Short - bind mount with options")
     func short_bindWithOptions() throws {
-        let node = try Yams.compose(yaml: "\"./data:/var/lib/data:ro,z,rshared,cached\"")
+        let node = try Yams.compose(
+            yaml: "\"./data:/var/lib/data:ro,z,rshared,cached\""
+        )
         let vol = try Service.Volume(node!, envs: [:])
         #expect(vol.type == Service.VolumeType.bind)
         #expect(vol.read_only == true)
@@ -54,7 +49,9 @@ struct ServiceVolumeTestSuite {
 
     @Test("Short - windows drive letter path preserved")
     func short_windowsDrive() throws {
-        let node = try Yams.compose(yaml: "\"C:\\\\data:/var/lib/data:rw,delegated\"")
+        let node = try Yams.compose(
+            yaml: "\"C:\\\\data:/var/lib/data:rw,delegated\""
+        )
         let vol = try Service.Volume(node!, envs: [:])
         #expect((vol.source ?? "").hasPrefix("C:"))
         #expect(vol.read_only == false)
@@ -104,16 +101,16 @@ struct ServiceVolumeTestSuite {
     @Test("Long - full mapping with bind options")
     func long_fullBind() throws {
         let yaml = """
-        type: bind
-        source: ./data
-        target: /data
-        read_only: true
-        bind:
-          propagation: rshared
-          create_host_path: true
-          selinux: "Z"
-        consistency: cached
-        """
+            type: bind
+            source: ./data
+            target: /data
+            read_only: true
+            bind:
+              propagation: rshared
+              create_host_path: true
+              selinux: "Z"
+            consistency: cached
+            """
         let node = try Yams.compose(yaml: yaml)
         let vol = try Service.Volume(node!, envs: [:])
         #expect(vol.type == Service.VolumeType.bind)
@@ -129,33 +126,33 @@ struct ServiceVolumeTestSuite {
     @Test("Long - volume options and tmpfs")
     func long_volumeAndTmpfs() throws {
         let yaml = """
-        type: volume
-        source: db-data
-        target: /var/lib/mysql
-        volume:
-          nocopy: true
-          subpath: sub/dir
-        tmpfs:
-          size: 1048576
-          mode: 0700
-        """
+            type: volume
+            source: db-data
+            target: /var/lib/mysql
+            volume:
+              nocopy: true
+              subpath: sub/dir
+            tmpfs:
+              size: 1048576
+              mode: 0700
+            """
         let node = try Yams.compose(yaml: yaml)
         let vol = try Service.Volume(node!, envs: [:])
         #expect(vol.type == Service.VolumeType.volume)
         #expect(vol.volume?.nocopy == true)
         #expect(vol.volume?.subpath == "sub/dir")
-        #expect(vol.tmpfs?.size == 1048576)
+        #expect(vol.tmpfs?.size == 1_048_576)
         #expect(vol.tmpfs?.mode == 700)
     }
 
     @Test("Long - env interpolation")
     func long_envInterpolation() throws {
         let yaml = """
-        type: ${TYPE}
-        source: ${SRC}
-        target: ${TGT}
-        consistency: ${CONSISTENCY}
-        """
+            type: ${TYPE}
+            source: ${SRC}
+            target: ${TGT}
+            consistency: ${CONSISTENCY}
+            """
         let node = try Yams.compose(yaml: yaml)
         let vol = try Service.Volume(
             node!,
@@ -183,7 +180,7 @@ struct ServiceVolumeTestSuite {
     @Test(
         "Long - invalid top-level node throws",
         arguments: [
-            "[a, b, c]",
+            "[a, b, c]"
         ]
     )
     func long_invalidTop(_ yaml: String) throws {

@@ -114,7 +114,7 @@ extension Service {
 // MARK: - ServiceVolume.swift
 extension Service.BindOptions: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -157,7 +157,7 @@ extension Service.BindOptions: NodeConvertible {
 
 extension Service.VolumeOptions: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -184,7 +184,7 @@ extension Service.VolumeOptions: NodeConvertible {
 
 extension Service.TmpfsOptions: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -209,7 +209,7 @@ extension Service.TmpfsOptions: NodeConvertible {
 
 extension Service.Volume: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         // Try the short string syntax first.
         if let raw = try node.string(envs: envs) {
             self = try Self.parseShortSyntax(raw)

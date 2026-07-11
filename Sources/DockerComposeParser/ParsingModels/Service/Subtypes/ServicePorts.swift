@@ -56,7 +56,7 @@ extension Service {
 
 extension Service.Port: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         // Bare scalar entry, e.g. `ports: - "8080:80"` or `ports: - 3000`.
         // `.string(envs:)` already stringifies int-tagged scalars, so a bare
         // int like `3000` flows through parseShortSyntax the same as `"3000"`

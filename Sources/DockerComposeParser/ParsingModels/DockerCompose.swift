@@ -40,48 +40,7 @@ public struct DockerCompose: Codable {
     /// Optional top-level secret definitions (primarily for Swarm)
     public var secrets: [String: DockerComposeParser.Secret?]?
 
-    // envs: environment variables read from .env file (or any --env-file specified by the user)
-    // projectDirectory: used for resolving relative paths within the compose file
-    // if not specified, default to the folder containing the compose file
-    public init(url: URL, envs: [String: String]) throws {
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw ComposeError.fileNotFound
-        }
-        let yamlData = try Data(contentsOf: url)
-        try self.init(
-            data: yamlData,
-            envs: envs,
-        )
-    }
-
-    public init(data: Data, envs: [String: String])
-        throws
-    {
-        guard let dockerComposeString = String(data: data, encoding: .utf8)
-        else {
-            throw ComposeError.invalidFileData
-        }
-        try self.init(
-            string: dockerComposeString,
-            envs: envs,
-        )
-    }
-
-    public init(string: String, envs: [String: String])
-        throws
-    {
-        guard let node = try Yams.compose(yaml: string) else {
-            throw DecodingError.dataCorrupted(
-                .init(
-                    codingPath: [],
-                    debugDescription: "Data is not valid YAML."
-                )
-            )
-        }
-        self = try DockerCompose(node, envs: envs)
-    }
-
-    init(
+    public init(
         version: String? = nil,
         name: String? = nil,
         include: [Include]? = nil,
@@ -102,11 +61,65 @@ public struct DockerCompose: Codable {
         self.configs = configs
         self.secrets = secrets
     }
+
+    /// Load a `DockerCompose` at a given **file** URL
+    /// - remote URL **not** supported
+    /// - variables used within the compose will be resolved based on the `envs`
+    /// - relative paths, includes, extends will **not** be resolved
+    ///     - for fully resolved compose, please use `ComposeParser.loadCompose` instead.
+    public init(url: URL, envs: [String: String]) throws {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw ComposeError.fileNotFound
+        }
+        let yamlData = try Data(contentsOf: url)
+        try self.init(
+            data: yamlData,
+            envs: envs,
+        )
+    }
+
+    /// Load a `DockerCompose` for a given data
+    /// - remote URL **not** supported
+    /// - variables used within the compose will be resolved based on the `envs`
+    /// - relative paths, includes, extends will **not** be resolved
+    ///     - for fully resolved compose, please use `ComposeParser.loadCompose` instead.
+    public init(data: Data, envs: [String: String])
+        throws
+    {
+        guard let dockerComposeString = String(data: data, encoding: .utf8)
+        else {
+            throw ComposeError.invalidFileData
+        }
+        try self.init(
+            string: dockerComposeString,
+            envs: envs,
+        )
+    }
+
+    /// Load a `DockerCompose` for a given yaml string
+    /// - remote URL **not** supported
+    /// - variables used within the compose will be resolved based on the `envs`
+    /// - relative paths, includes, extends will **not** be resolved
+    ///     - for fully resolved compose, please use `ComposeParser.loadCompose` instead.
+    public init(string: String, envs: [String: String])
+        throws
+    {
+        guard let node = try Yams.compose(yaml: string) else {
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: [],
+                    debugDescription: "Data is not valid YAML."
+                )
+            )
+        }
+        self = try DockerCompose(node, envs: envs)
+    }
+
 }
 
 extension DockerCompose: NodeConvertible {
 
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         guard let mapping = node.mapping else {
             throw DecodingError.dataCorrupted(
                 .init(
@@ -333,7 +346,7 @@ extension DockerCompose {
         return finalCompose
     }
 
-    public func resolveServiceExtends(
+    func resolveServiceExtends(
         resolveInFile: (String, URL) throws -> Service,
     ) throws -> DockerCompose {
         var finalCompose = self
@@ -362,7 +375,7 @@ extension DockerCompose {
     }
 
     // assume being called after merging with all includes
-    public func validateDependency() throws {
+    func validateDependency() throws {
         let serviceWithRequiredDependOn: [String: Service?] = self.services
             .filter({ (key, value) in
                 guard let depends_on = value?.depends_on, !depends_on.isEmpty
@@ -403,54 +416,4 @@ extension DockerCompose {
             )
         }
     }
-}
-
-
-extension Dictionary where Key == String {
-    // remove keys in the base dict that is container in the dict
-    func removeDuplicateKeys(in dict: Self) -> Self {
-        return self.filter({ v in
-            dict.contains(where: { $0.key == v.key }) == false
-        })
-    }
-
-    func keepDuplicateKeys(in dict: Self) -> Self {
-        return self.filter({ v in
-            dict.contains(where: { $0.key == v.key })
-        })
-    }
-}
-
-// Helper function for filtering the overrideCompose to only include those resources declared within the base for applying deep merging
-func createOverrideCompose(base: DockerCompose, overrideCompose: DockerCompose)
-    -> DockerCompose
-{
-    var finalOverride = overrideCompose
-    finalOverride.include = nil
-
-    finalOverride.services = finalOverride.services.keepDuplicateKeys(
-        in: base.services
-    )
-
-    finalOverride.models = finalOverride.models?.keepDuplicateKeys(
-        in: base.models ?? [:]
-    )
-
-    finalOverride.volumes = finalOverride.volumes?.keepDuplicateKeys(
-        in: base.volumes ?? [:]
-    )
-
-    finalOverride.networks = finalOverride.networks?.keepDuplicateKeys(
-        in: base.networks ?? [:]
-    )
-
-    finalOverride.configs = finalOverride.configs?.keepDuplicateKeys(
-        in: base.configs ?? [:]
-    )
-
-    finalOverride.secrets = finalOverride.secrets?.keepDuplicateKeys(
-        in: base.secrets ?? [:]
-    )
-
-    return finalOverride
 }

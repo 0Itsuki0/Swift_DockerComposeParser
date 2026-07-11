@@ -7,11 +7,6 @@
 
 import Yams
 
-public enum ComposeTag: String, Codable, Hashable {
-    case override = "!override"
-    case reset = "!reset"
-}
-
 extension Node.Mapping {
 
     func value(for key: CodingKey) throws -> Node {
@@ -39,7 +34,7 @@ extension Node {
     }
 
     /// This node as a `String`, if convertible.
-    public func string(envs: [String: String]) throws -> String? {
+    func string(envs: [String: String]) throws -> String? {
         guard let string = self.string else {
             return nil
         }
@@ -55,23 +50,23 @@ extension Node {
     // - TRUE
     // - false
     // - "FALSE"
-    public func int(envs: [String: String]) throws -> Int? {
+    func int(envs: [String: String]) throws -> Int? {
         // parsing as string first to resolve for env
         guard let string = try self.string(envs: envs) else {
             return nil
         }
         return Int(string)
     }
-    
-    public func float(envs: [String: String]) throws -> Double? {
+
+    func float(envs: [String: String]) throws -> Double? {
         // parsing as string first to resolve for env
         guard let string = try self.string(envs: envs) else {
             return nil
         }
         return Double(string)
     }
-    
-    public func bool(envs: [String: String]) throws -> Bool? {
+
+    func bool(envs: [String: String]) throws -> Bool? {
         // parsing as string first to resolve for env
         guard let string = try self.string(envs: envs) else {
             return nil
@@ -85,7 +80,7 @@ extension Node {
     /// dns:
     /// - 8.8.8.8
     /// - 9.9.9.9
-    public func array(
+    func array(
         of type: String.Type = String.self,
         envs: [String: String]
     )
@@ -109,7 +104,7 @@ extension Node {
         )
     }
 
-    public func array<Type: NodeConvertible>(
+    func array<Type: NodeConvertible>(
         of type: Type.Type = Type.self,
         envs: [String: String]
     )
@@ -143,7 +138,7 @@ extension Node {
     /// - "com.example.description=Accounting webapp"
     /// - "com.example.department=Finance"
     /// - "com.example.label-with-empty-value"
-    public func dictionary(envs: [String: String], isEnv: Bool = false) throws
+    func dictionary(envs: [String: String], isEnv: Bool = false) throws
         -> [String: String]
     {
         if let mapping = self.mapping {
@@ -183,7 +178,7 @@ extension Node {
     //     my_model:
     //       endpoint_var: MODEL_URL
     //       model_var: MODEL
-    public func dictionary<T>(
+    func dictionary<T>(
         type: T.Type = T.self,
         envs: [String: String],
         transformMap: @escaping (_ key: String, _ value: Node) throws -> T,
@@ -197,13 +192,13 @@ extension Node {
             }
             return normalized
         }
-        
+
         if let asList = try? self.array(of: String.self, envs: envs),
             !asList.isEmpty
         {
             return try transformArray(asList)
         }
-        
+
         throw DecodingError.dataCorrupted(
             .init(
                 codingPath: [],
@@ -212,21 +207,3 @@ extension Node {
         )
     }
 }
-
-
-//import Playgrounds
-//#Playground {
-//    let yamlString = """
-//      - 1
-//      - "1"
-//      - 2.5
-//      - "2.5"
-//      - true
-//      - TRUE
-//      - false
-//      - "FALSE"
-//      """
-//    let node = try Yams.compose(yaml: yamlString)
-//
-//    print(node!.array().map(\.string))
-//}

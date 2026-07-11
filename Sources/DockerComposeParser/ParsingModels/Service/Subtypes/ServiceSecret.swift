@@ -81,7 +81,7 @@ extension Service.Secret: NodeConvertible {
 
     // Custom initializer to handle `secret_name` (string) or
     // `{ source: secret_name, target: /path }` (object).
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         if let sourceName = try node.string(envs: envs) {
             self.source = sourceName
             self.tags[CodingKeys.source.stringValue] = node.composeTag

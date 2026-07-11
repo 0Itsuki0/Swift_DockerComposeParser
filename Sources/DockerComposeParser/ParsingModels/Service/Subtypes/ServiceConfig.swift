@@ -76,7 +76,7 @@ extension Service.Config: NodeConvertible {
 
     // Custom initializer to handle `config_name` (string) or
     // `{ source: config_name, target: /path }` (object).
-    public init(_ node: Node, envs: [String: String]) throws {
+    init(_ node: Node, envs: [String: String]) throws {
         if let sourceName = try node.string(envs: envs) {
             self.source = sourceName
             self.tags[CodingKeys.source.stringValue] = node.composeTag

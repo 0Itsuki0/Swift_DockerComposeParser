@@ -6,53 +6,11 @@
 //
 
 import Foundation
-import Playgrounds
 import Yams
-
-extension Array where Element == String {
-    var allUnique: Bool {
-        Set(self).count == count
-    }
-}
-
-extension Array where Element == [String: Any] {
-    var allKeyUnique: Bool {
-        let keys = self.flatMap(\.keys)
-        return Set(keys).count == keys.count
-    }
-}
 
 public enum Utility {
 
-    public static func checkIncludeUniqueness(_ compose: [DockerCompose]) throws
-    {
-        if !compose.compactMap(\.services).allKeyUnique {
-            throw ComposeError.invalidInclude("Duplicate service name found")
-        }
-        if !compose.compactMap(\.configs).allKeyUnique {
-            throw ComposeError.invalidInclude("Duplicate configs name found")
-        }
-        if !compose.compactMap(\.volumes).allKeyUnique {
-            throw ComposeError.invalidInclude("Duplicate volumes name found")
-        }
-        if !compose.compactMap(\.secrets).allKeyUnique {
-            throw ComposeError.invalidInclude("Duplicate secrets name found")
-        }
-        if !compose.compactMap(\.models).allKeyUnique {
-            throw ComposeError.invalidInclude("Duplicate models name found")
-        }
-        if !compose.compactMap(\.services).allKeyUnique {
-            throw ComposeError.invalidInclude("Duplicate service name found")
-        }
-        if !compose.compactMap(\.configs).allKeyUnique {
-            throw ComposeError.invalidInclude("Duplicate configs name found")
-        }
-        if !compose.compactMap(\.networks).allKeyUnique {
-            throw ComposeError.invalidInclude("Duplicate networks name found")
-        }
-
-    }
-
+    /// Resolve variables contained in a YAML string
     public static func resolveVariable(
         _ value: String,
         with envVars: [String: String]
@@ -93,6 +51,7 @@ public enum Utility {
         return resolvedValue
     }
 
+    /// Load env files for a compose project
     public static func loadProjectEnvFiles(
         _ envFiles: [URL],
         projectDirectory: URL
@@ -130,14 +89,14 @@ public enum Utility {
         return resolvedEnvs
     }
 
+    /// Load a single env file
     public static func loadEnvFile(_ fileURL: URL) throws -> [String: String] {
         let content = try String(contentsOf: fileURL, encoding: .utf8)
         let lines = content.split(separator: "\n").map(String.init)
         return parseKeyValueList(Array(lines), isEnv: true)
     }
 
-    // Translates a plain `KEY=value` list (as used by `annotations`, `labels`, and
-    // `sysctls`) into a `[String: String]` map.
+    /// Translates a plain `KEY=value` list (as used by `annotations`, `labels`, and `sysctls`) into a `[String: String]` map.
     public static func parseKeyValueList(_ entries: [String], isEnv: Bool)
         -> [String: String]
     {
@@ -172,7 +131,7 @@ public enum Utility {
 
     }
 
-    public static func isLocalPath(_ string: String) -> Bool {
+    static func isLocalPath(_ string: String) -> Bool {
         let string = string.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Git SSH shorthand
@@ -200,27 +159,69 @@ public enum Utility {
 
         return true
     }
-}
 
-extension Array {
-    func toDictionary<T>(
-        valueType: T.Type = T.self,
-        makeValue: @escaping (Element) -> T
+    // Helper function for filtering the overrideCompose to only include those resources declared within the base for applying deep merging
+    static func createOverrideCompose(
+        base: DockerCompose,
+        overrideCompose: DockerCompose
     )
-        -> [Element: T]
+        -> DockerCompose
     {
-        Dictionary(uniqueKeysWithValues: self.map { ($0, makeValue($0)) })
-    }
-}
+        var finalOverride = overrideCompose
+        finalOverride.include = nil
 
-extension String {
-    func absolutePath(relativeTo: URL) -> String {
-        // to handle the case where the relativeTo is missing the trailing slash and the URL(filePath:) will treat it as a file instead of directory
-        let baseDirectory =
-            relativeTo.hasDirectoryPath
-            ? relativeTo
-            : relativeTo.standardizedFileURL
-                .appendingPathComponent("", isDirectory: true)
-        return URL(filePath: self, relativeTo: baseDirectory).path()
+        finalOverride.services = finalOverride.services.keepDuplicateKeys(
+            in: base.services
+        )
+
+        finalOverride.models = finalOverride.models?.keepDuplicateKeys(
+            in: base.models ?? [:]
+        )
+
+        finalOverride.volumes = finalOverride.volumes?.keepDuplicateKeys(
+            in: base.volumes ?? [:]
+        )
+
+        finalOverride.networks = finalOverride.networks?.keepDuplicateKeys(
+            in: base.networks ?? [:]
+        )
+
+        finalOverride.configs = finalOverride.configs?.keepDuplicateKeys(
+            in: base.configs ?? [:]
+        )
+
+        finalOverride.secrets = finalOverride.secrets?.keepDuplicateKeys(
+            in: base.secrets ?? [:]
+        )
+
+        return finalOverride
     }
+
+    static func checkIncludeUniqueness(_ compose: [DockerCompose]) throws {
+        if !compose.compactMap(\.services).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate service name found")
+        }
+        if !compose.compactMap(\.configs).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate configs name found")
+        }
+        if !compose.compactMap(\.volumes).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate volumes name found")
+        }
+        if !compose.compactMap(\.secrets).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate secrets name found")
+        }
+        if !compose.compactMap(\.models).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate models name found")
+        }
+        if !compose.compactMap(\.services).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate service name found")
+        }
+        if !compose.compactMap(\.configs).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate configs name found")
+        }
+        if !compose.compactMap(\.networks).allKeyUnique {
+            throw ComposeError.invalidInclude("Duplicate networks name found")
+        }
+    }
+
 }
