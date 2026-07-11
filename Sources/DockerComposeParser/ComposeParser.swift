@@ -28,15 +28,24 @@ public enum ComposeParser {
         _ composeURL: URL,
         otherComposes: [URL] = [],
         envFiles: [URL] = [],
-        projectDirectory: URL?
+        projectDirectory: URL?,
+        nameOverride: String? = nil
     ) throws -> DockerCompose {
         let projectDirectory =
             projectDirectory ?? composeURL.deletingLastPathComponent()
 
-        let resolvedEnvs = try Utility.loadProjectEnvFiles(
+        var resolvedEnvs = try Utility.loadProjectEnvFiles(
             envFiles,
             projectDirectory: projectDirectory
         )
+
+        // update envs to include project name if override applied (similar to the -p command)
+        // because whenever a project name is defined by top-level name or by some custom mechanism (-p for example),
+        // it is exposed for interpolation and environment variable resolution as COMPOSE_PROJECT_NAME
+        // https://docs.docker.com/reference/compose-file/version-and-name/#name-top-level-element
+        if let nameOverride {
+            resolvedEnvs[Utility.projectNameVar] = nameOverride
+        }
 
         var baseCompose = try loadCompose(
             composeURL,
@@ -84,13 +93,21 @@ public enum ComposeParser {
         _ composeURL: URL,
         envFiles: [URL],
         projectDirectory: URL?,
+        nameOverride: String? = nil
     ) throws -> DockerCompose {
         let projectDirectory =
             projectDirectory ?? composeURL.deletingLastPathComponent()
-        let resolvedEnvs = try Utility.loadProjectEnvFiles(
+        var resolvedEnvs = try Utility.loadProjectEnvFiles(
             envFiles,
             projectDirectory: projectDirectory
         )
+        // update envs to include project name if override applied (similar to the -p command)
+        // because whenever a project name is defined by top-level name or by some custom mechanism (-p for example),
+        // it is exposed for interpolation and environment variable resolution as COMPOSE_PROJECT_NAME
+        // https://docs.docker.com/reference/compose-file/version-and-name/#name-top-level-element
+        if let nameOverride {
+            resolvedEnvs[Utility.projectNameVar] = nameOverride
+        }
 
         return try loadCompose(
             composeURL,
@@ -124,13 +141,26 @@ public enum ComposeParser {
         validateDependency: Bool
     ) throws -> DockerCompose {
         guard composeURL.isFileURL else {
-            throw ComposeError.invalidURL("Compose URL is not a file URL. Remote compose is not supported.")
+            throw ComposeError.invalidURL(
+                "Compose URL is not a file URL. Remote compose is not supported."
+            )
         }
 
         guard FileManager.default.fileExists(atPath: composeURL.path()) else {
             throw ComposeError.invalidURL(
                 "Compose does not exist at the specified path."
             )
+        }
+
+        var envs = envs
+        // update envs to include project name if defined in the compose and no override applied (through -p or `COMPOSE_PROJECT_NAME`)
+        // because whenever a project name is defined by top-level name or by some custom mechanism (-p for example),
+        // it is exposed for interpolation and environment variable resolution as COMPOSE_PROJECT_NAME
+        // https://docs.docker.com/reference/compose-file/version-and-name/#name-top-level-element
+        if !envs.contains(where: { $0.key == Utility.projectNameVar }),
+            let name = Utility.getComposeName(composeURL: composeURL)
+        {
+            envs[Utility.projectNameVar] = name
         }
 
         var baseCompose = try DockerCompose.init(url: composeURL, envs: envs)

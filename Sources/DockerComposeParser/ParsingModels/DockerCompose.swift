@@ -131,18 +131,6 @@ extension DockerCompose: NodeConvertible {
 
         self.name = try? mapping.value(for: CodingKeys.name).string(envs: envs)
 
-        // update envs to include project name
-        // Whenever a project name is defined by top-level name or by some custom mechanism,
-        // it is exposed for interpolation and environment variable resolution as COMPOSE_PROJECT_NAME
-        // https://docs.docker.com/reference/compose-file/version-and-name/#name-top-level-element
-        var envs = envs
-
-        if !envs.contains(where: { $0.key == Utility.projectNameVar }),
-            let name = self.name
-        {
-            envs[Utility.projectNameVar] = name
-        }
-
         self.version = try? mapping.value(for: CodingKeys.version).string(
             envs: envs
         )

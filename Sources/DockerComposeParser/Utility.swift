@@ -225,4 +225,19 @@ public enum Utility {
             throw ComposeError.invalidInclude("Duplicate networks name found")
         }
     }
+
+    // try to get the top level name element of the compose as we will need to add the `COMPOSE_PROJECT_NAME` as an environment when load the full compose
+    // because whenever a project name is defined by top-level name or by some custom mechanism (-p for example),
+    // it is exposed for interpolation and environment variable resolution as COMPOSE_PROJECT_NAME
+    // https://docs.docker.com/reference/compose-file/version-and-name/#name-top-level-element
+    static func getComposeName(composeURL: URL) -> String? {
+        guard let yamlData = try? Data(contentsOf: composeURL), let string = String(data: yamlData, encoding: .utf8), let node = try? Yams.compose(yaml: string) else {
+            return nil
+        }
+
+        guard let mapping = node.mapping else {
+            return nil
+        }
+        return mapping["name"]?.string
+    }
 }

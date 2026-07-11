@@ -837,4 +837,63 @@ class MultiComposeResolvingTestSuite {
         #expect(compose.services["web"]??.image == "nginx:latest")
         #expect(compose.services["db"]??.image == "postgres:latest")
     }
+
+    @Test(
+        "Test loadComposes - name defined in compose resolved as env `COMPOSE_PROJECT_NAME`"
+    )
+    func loadComposeNameEnv() throws {
+        let temp = projectDirectory
+        let yaml = """
+            name: myapp
+            services:
+              foo:
+                image: busybox
+                command: echo "I'm running ${COMPOSE_PROJECT_NAME}"
+            """
+        let tempURL = temp.appending(path: "temp.yaml")
+        try writeFile(yaml, to: tempURL)
+
+        let compose = try ComposeParser.loadCompose(
+            tempURL,
+            envFiles: [],
+            projectDirectory: nil,
+            nameOverride: nil
+        )
+
+        #expect(compose.name == "myapp")
+        #expect(
+            compose.services["foo"]??.command == ["echo \"I'm running myapp\""]
+        )
+    }
+
+    @Test(
+        "Test loadComposes - override name take precedency over name defined in compose when resolving as env `COMPOSE_PROJECT_NAME`"
+    )
+    func loadWithComposeNameOverride() throws {
+        let temp = projectDirectory
+
+        let yaml = """
+            name: myapp
+            services:
+              foo:
+                image: busybox
+                command: echo "I'm running ${COMPOSE_PROJECT_NAME}"
+            """
+        let tempURL = temp.appending(path: "temp.yaml")
+        try writeFile(yaml, to: tempURL)
+
+        let compose = try ComposeParser.loadCompose(
+            tempURL,
+            envFiles: [],
+            projectDirectory: nil,
+            nameOverride: "some app"
+        )
+        #expect(
+            compose.services["foo"]??.command == [
+                "echo \"I'm running some app\""
+            ]
+        )
+
+    }
+
 }

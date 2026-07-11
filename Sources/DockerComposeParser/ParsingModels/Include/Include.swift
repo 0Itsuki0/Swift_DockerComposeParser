@@ -14,7 +14,6 @@ import Yams
 // include:
 //   - oci://docker.io/username/my-compose-app:latest # use a Compose file stored as an OCI artifact
 
-
 /// A single entry in the top-level `include` element, referencing another
 /// Compose file (or files) to be loaded and merged into this Compose
 /// application's model.
@@ -172,7 +171,7 @@ extension Include {
         })
         return resolved
     }
-    
+
     // Project directory is to be used for resolving any relative path contained within the included compose file.
     // ie: the env_file property should NOT be resolved based on this
     // NOTE: Assume the resolvePathToAbsolute already called
@@ -222,6 +221,8 @@ extension Include {
                 $0,
                 envFiles: envFiles,
                 projectDirectory: baseURL,
+                // NOTE: no need to try to find a name here as any name override or COMPOSE_PROJECT_NAME of the includes should be that of the main compose, ie: already included in the mainEnvs.
+                nameOverride: nil
             )
         })
 
