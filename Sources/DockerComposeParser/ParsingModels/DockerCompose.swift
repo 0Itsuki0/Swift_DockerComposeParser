@@ -112,16 +112,6 @@ public struct DockerCompose: Codable {
                 )
             )
         }
-        
-        var envs = envs
-        // Whenever a project name is defined by top-level name or by some custom mechanism,
-        // it is exposed for interpolation and environment variable resolution as COMPOSE_PROJECT_NAME
-        // https://docs.docker.com/reference/compose-file/version-and-name/#name-top-level-element
-        if !envs.contains(where: { $0.key == Utility.projectNameVar }),
-            let name = Utility.getComposeName(node: node)
-        {
-            envs[Utility.projectNameVar] = name
-        }
         self = try DockerCompose(node, envs: envs)
     }
 
@@ -139,10 +129,23 @@ extension DockerCompose: NodeConvertible {
             )
         }
 
+        self.name = try? mapping.value(for: CodingKeys.name).string(envs: envs)
+
+        // update envs to include project name
+        // Whenever a project name is defined by top-level name or by some custom mechanism,
+        // it is exposed for interpolation and environment variable resolution as COMPOSE_PROJECT_NAME
+        // https://docs.docker.com/reference/compose-file/version-and-name/#name-top-level-element
+        var envs = envs
+
+        if !envs.contains(where: { $0.key == Utility.projectNameVar }),
+            let name = self.name
+        {
+            envs[Utility.projectNameVar] = name
+        }
+
         self.version = try? mapping.value(for: CodingKeys.version).string(
             envs: envs
         )
-        self.name = try? mapping.value(for: CodingKeys.name).string(envs: envs)
 
         // `services` is required.
         let serviceNode = try mapping.value(for: CodingKeys.services)
