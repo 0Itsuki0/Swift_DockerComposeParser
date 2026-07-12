@@ -9,7 +9,7 @@ import Yams
 
 /// Represents a top-level network definition.
 /// https://docs.docker.com/reference/compose-file/networks/#attributes
-public struct Network: Codable, Hashable {
+public struct Network: Codable, Sendable, Equatable, Hashable {
 
     public var attachable: Bool?
 
@@ -56,27 +56,25 @@ public struct Network: Codable, Hashable {
     public var tags: [String: ComposeTag?] = [:]
 
     public init(
-        driver: String?,
-        driver_opts: [String: String]?,
-        attachable: Bool?,
-        enable_ipv4: Bool?,
-        enable_ipv6: Bool?,
-        ipam: IPAM?,
-        internal: Bool?,
-        labels: [String: String]?,
-        name: String?,
-        external: Bool?
+        attachable: Bool? = nil,
+        driver: String? = nil,
+        driver_opts: [String: String?]? = nil,
+        enable_ipv4: Bool? = nil,
+        enable_ipv6: Bool? = nil,
+        external: Bool? = nil,
+        ipam: IPAM? = nil,
+        labels: [String: String?]? = nil,
+        name: String? = nil,
     ) {
+        self.attachable = attachable
         self.driver = driver
         self.driver_opts = driver_opts
-        self.attachable = attachable
         self.enable_ipv4 = enable_ipv4
         self.enable_ipv6 = enable_ipv6
+        self.external = external
         self.ipam = ipam
-        self.internal = `internal`
         self.labels = labels
         self.name = name
-        self.external = external
     }
 
 }
@@ -107,22 +105,30 @@ extension Network: NodeConvertible {
             for: CodingKeys.driver_opts
         )
 
-        self.attachable = try? mapping.value(for: CodingKeys.attachable).bool(envs: envs)
+        self.attachable = try? mapping.value(for: CodingKeys.attachable).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.attachable.stringValue] = mapping.composeTag(
             for: CodingKeys.attachable
         )
 
-        self.enable_ipv4 = try? mapping.value(for: CodingKeys.enable_ipv4).bool(envs: envs)
+        self.enable_ipv4 = try? mapping.value(for: CodingKeys.enable_ipv4).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.enable_ipv4.stringValue] = mapping.composeTag(
             for: CodingKeys.enable_ipv4
         )
 
-        self.enable_ipv6 = try? mapping.value(for: CodingKeys.enable_ipv6).bool(envs: envs)
+        self.enable_ipv6 = try? mapping.value(for: CodingKeys.enable_ipv6).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.enable_ipv6.stringValue] = mapping.composeTag(
             for: CodingKeys.enable_ipv6
         )
 
-        self.`internal` = try? mapping.value(for: CodingKeys.`internal`).bool(envs: envs)
+        self.`internal` = try? mapping.value(for: CodingKeys.`internal`).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.internal.stringValue] = mapping.composeTag(
             for: CodingKeys.internal
         )
@@ -143,7 +149,9 @@ extension Network: NodeConvertible {
             for: CodingKeys.ipam
         )
 
-        self.external = try? mapping.value(for: CodingKeys.external).bool(envs: envs)
+        self.external = try? mapping.value(for: CodingKeys.external).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.external.stringValue] = mapping.composeTag(
             for: CodingKeys.external
         )

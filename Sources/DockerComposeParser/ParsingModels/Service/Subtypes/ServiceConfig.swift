@@ -9,7 +9,7 @@ import Yams
 
 /// Represents a service's usage of a config.
 extension Service {
-    public struct Config: Codable, Hashable {
+    public struct Config: Codable, Sendable, Equatable, Hashable {
         /// Name of the config being used
         public var source: String
 

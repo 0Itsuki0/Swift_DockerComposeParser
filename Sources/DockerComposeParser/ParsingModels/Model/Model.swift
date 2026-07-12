@@ -17,7 +17,7 @@
 ///     runtime_flags:
 ///       - "--a-flag"
 /// ```
-public struct Model: Codable, Hashable {
+public struct Model: Codable, Sendable, Equatable, Hashable {
     /// The OCI artifact identifier for the model. This is what Compose pulls
     /// and runs via the model runner.
     public var model: String

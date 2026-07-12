@@ -10,7 +10,7 @@ import Yams
 
 /// Represents a top-level secret definition
 /// https://docs.docker.com/reference/compose-file/secrets/
-public struct Secret: Codable, Hashable {
+public struct Secret: Codable, Sendable, Equatable, Hashable {
     /// Path to the file containing the secret content
     public var file: String?
     /// Environment variable to populate with the secret content

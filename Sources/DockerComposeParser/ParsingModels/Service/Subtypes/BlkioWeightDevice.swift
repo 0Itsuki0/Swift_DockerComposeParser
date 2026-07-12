@@ -9,7 +9,7 @@ import Yams
 
 /// A single path/weight pair used within `blkio_config.weight_device`.
 extension Service {
-    public struct BlkioWeightDevice: Codable, Hashable {
+    public struct BlkioWeightDevice: Codable, Sendable, Equatable, Hashable {
         public var path: String
         public var weight: Int
 

@@ -9,7 +9,7 @@ import Yams
 
 /// Configuration for a service implemented by a Compose provider plugin (`provider`).
 extension Service {
-    public struct Provider: Codable, Hashable {
+    public struct Provider: Codable, Sendable, Equatable, Hashable {
         public var type: String
         // optional value to handle reset
         public var options: [String: String?]?

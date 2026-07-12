@@ -9,7 +9,7 @@ import Foundation
 import Yams
 
 /// Represents a top-level config definition
-public struct Config: Codable {
+public struct Config: Codable, Sendable, Equatable, Hashable {
     /// Path to the file containing the config content
     public var file: String?
     /// Indicates if the config is external (pre-existing)

@@ -9,7 +9,7 @@ import Yams
 
 /// A single ulimit entry, either a single value (soft == hard) or distinct soft/hard values.
 extension Service {
-    public struct Ulimit: Codable, Hashable {
+    public struct Ulimit: Codable, Sendable, Equatable, Hashable {
         public var soft: Int
         public var hard: Int
 

@@ -10,7 +10,7 @@ import Yams
 
 /// Represents the `build` configuration for a service.
 extension Service {
-    public struct Build: Codable, Hashable {
+    public struct Build: Codable, Sendable, Equatable, Hashable {
         /// Path to the build context
         public var context: String
         /// Optional path to the Dockerfile within the context
@@ -43,7 +43,7 @@ extension Service {
         /// Always attempt to pull a newer version of the image
         public var pull: Bool?
         /// Secrets exposed to the build
-        public var secrets: [Service.Secret?]?
+        public var secrets: [Service.Secret]?
         /// Size of /dev/shm for the build container
         public var shm_size: String?
         /// Target build stage to build
@@ -71,7 +71,7 @@ extension Service {
             platforms: [String]? = nil,
             privileged: Bool? = nil,
             pull: Bool? = nil,
-            secrets: [Service.Secret?]? = nil,
+            secrets: [Service.Secret]? = nil,
             shm_size: String? = nil,
             target: String? = nil,
             ssh: [String]? = nil,
@@ -315,7 +315,7 @@ extension Service.Build {
     /// A bare `NAME` is shorthand for `type=registry,ref=NAME`.
     /// https://docs.docker.com/reference/compose-file/build/#cache_from
     /// NOTE: no tags since it will be an array resolved from Build
-    public struct CacheEntry: Codable, Hashable {
+    public struct CacheEntry: Codable, Sendable, Equatable, Hashable {
         /// Cache backend type, e.g. "registry", "gha", "local", "s3".
         public var type: String
         /// Remaining `key=value` attributes for the given type (e.g. "ref", "mode").

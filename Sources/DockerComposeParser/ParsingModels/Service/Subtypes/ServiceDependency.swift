@@ -9,7 +9,7 @@ import Yams
 
 /// Service-level `depends_on` options for Compose map-form dependencies.
 extension Service {
-    public struct Dependency: Codable, Hashable {
+    public struct Dependency: Codable, Sendable, Equatable, Hashable {
 
         /// Dependency condition, for example `service_started` or `service_healthy`.
         public var condition: DependencyCondition?
@@ -33,7 +33,7 @@ extension Service {
         }
     }
 
-    public enum DependencyCondition: String, Codable, Sendable, Hashable {
+    public enum DependencyCondition: String, Codable, Sendable, Equatable, Sendable, Hashable {
         case service_started
         case service_healthy
         case service_completed_successfully

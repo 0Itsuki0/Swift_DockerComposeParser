@@ -8,7 +8,7 @@
 /// Block I/O (blkio) limits for a service container, as set by `blkio_config`.
 extension Service {
 
-    public struct BlkioConfig: Codable, Hashable {
+    public struct BlkioConfig: Codable, Sendable, Equatable, Hashable {
         public var weight: Int?
         public var weight_device: [BlkioWeightDevice]?
         public var device_read_bps: [BlkioDeviceRate]?

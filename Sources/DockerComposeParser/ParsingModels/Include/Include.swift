@@ -34,7 +34,7 @@ import Yams
 ///     project_directory: ..
 ///     env_file: ../another/.env
 /// ```
-public struct Include: Codable, Hashable {
+public struct Include: Codable, Sendable, Equatable, Hashable {
     /// Path(s) to the Compose file(s) to be parsed and included into the local
     /// Compose model. Normalized to a list even when written as a single string.
     /// When more than one path is given, those files are merged together to

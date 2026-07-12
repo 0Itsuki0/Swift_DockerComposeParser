@@ -9,7 +9,7 @@ import Yams
 
 /// A single `develop.watch` rule describing a path to monitor and the action to take on change.
 extension Service {
-    public struct DevelopWatchItem: Codable, Hashable {
+    public struct DevelopWatchItem: Codable, Sendable, Equatable, Hashable {
         public var path: String
         public var action: String
         public var target: String?

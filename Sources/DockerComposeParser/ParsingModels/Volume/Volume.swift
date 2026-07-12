@@ -18,7 +18,7 @@ import Yams
 
 /// Represents a top-level volume definition.
 /// https://docs.docker.com/reference/compose-file/volumes/#attributes
-public struct Volume: Codable, Hashable {
+public struct Volume: Codable, Sendable, Equatable, Hashable {
     /// Volume driver (e.g., 'local')
     public var driver: String?
 

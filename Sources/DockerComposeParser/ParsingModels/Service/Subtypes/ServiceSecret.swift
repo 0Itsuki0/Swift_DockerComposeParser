@@ -9,7 +9,7 @@ import Yams
 
 /// Represents a service's usage of a secret.
 extension Service {
-    public struct Secret: Codable, Hashable {
+    public struct Secret: Codable, Sendable, Equatable, Hashable {
         /// Name of the secret being used
         public var source: String
 

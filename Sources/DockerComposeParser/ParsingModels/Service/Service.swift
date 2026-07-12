@@ -10,7 +10,7 @@ import Yams
 
 /// Represents a single service definition within the `services` section.
 /// https://docs.docker.com/reference/compose-file/services/
-public struct Service: Codable, Hashable {
+public struct Service: Codable, Sendable, Equatable, Hashable {
     /// Docker image name
     public var image: String?
 

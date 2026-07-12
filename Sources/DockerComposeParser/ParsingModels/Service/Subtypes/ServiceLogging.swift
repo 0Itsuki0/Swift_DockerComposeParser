@@ -10,7 +10,7 @@
 import Yams
 
 extension Service {
-    public struct Logging: Codable, Hashable {
+    public struct Logging: Codable, Sendable, Equatable, Hashable {
         public var driver: String?
         // optional value to handle reset
         public var options: [String: String?]?

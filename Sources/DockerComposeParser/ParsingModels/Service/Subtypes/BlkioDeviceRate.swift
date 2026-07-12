@@ -9,7 +9,7 @@ import Yams
 
 /// A single path/rate pair used within `blkio_config`'s bps and iops lists.
 extension Service {
-    public struct BlkioDeviceRate: Codable, Hashable {
+    public struct BlkioDeviceRate: Codable, Sendable, Equatable, Hashable {
         public var path: String
         public var rate: String
 

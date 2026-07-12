@@ -9,7 +9,7 @@ import Yams
 
 /// A single GPU device request within `gpus`.
 extension Service {
-    public struct GpuDevice: Codable, Hashable {
+    public struct GpuDevice: Codable, Sendable, Equatable, Hashable {
         public var driver: String?
         public var count: Int?
         public var device_ids: [String]?

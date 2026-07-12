@@ -10,7 +10,7 @@ import Yams
 
 /// Credential spec for a managed service account (`credential_spec`), primarily used by Windows containers.
 extension Service {
-    public struct CredentialSpec: Codable, Hashable {
+    public struct CredentialSpec: Codable, Sendable, Equatable, Hashable {
         public var file: String?
         public var registry: String?
         public var config: String?

@@ -8,7 +8,7 @@
 import Yams
 
 extension Service {
-    public struct Hook: Codable, Hashable {
+    public struct Hook: Codable, Sendable, Equatable, Hashable {
         public var command: [String]?
         public var user: String?
         public var privileged: Bool?

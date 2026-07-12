@@ -10,7 +10,7 @@ import Yams
 
 /// Healthcheck configuration for a service.
 extension Service {
-    public struct Healthcheck: Codable, Hashable {
+    public struct Healthcheck: Codable, Sendable, Equatable, Hashable {
         private static let durationUnits: [String: TimeInterval] = [
             "ns": 0.000000001,
             "us": 0.000001,

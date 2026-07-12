@@ -7,12 +7,12 @@
 import Yams
 
 extension Service {
-    public enum PortProtocol: String, Codable, Hashable {
+    public enum PortProtocol: String, Codable, Sendable, Equatable, Hashable {
         case tcp
         case udp
     }
 
-    public enum Mode: String, Codable, Hashable {
+    public enum Mode: String, Codable, Sendable, Equatable, Hashable {
         case host
         case ingress
     }
@@ -20,7 +20,7 @@ extension Service {
     /// Models a single entry in a Compose service's `ports:` list.
     ///
     /// Reference: https://docs.docker.com/reference/compose-file/services/#ports
-    public struct Port: Codable, Hashable {
+    public struct Port: Codable, Sendable, Equatable, Hashable {
 
         /// Container port or range, e.g. "80" or "8080-8081". Required.
         public var target: String

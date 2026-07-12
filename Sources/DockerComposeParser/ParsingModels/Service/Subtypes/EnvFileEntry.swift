@@ -17,7 +17,7 @@ extension Service {
     // Arrays may also mix plain strings and dict entries.
     // Missing optional files (required: false) are loaded silently as empty — loadEnvFile
     // already suppresses read errors, which is the correct behaviour for optional files.
-    public struct EnvFileEntry: Codable, Hashable {
+    public struct EnvFileEntry: Codable, Sendable, Equatable, Hashable {
         public var path: String
         public var required: Bool
         public var tags: [String: ComposeTag?] = [:]

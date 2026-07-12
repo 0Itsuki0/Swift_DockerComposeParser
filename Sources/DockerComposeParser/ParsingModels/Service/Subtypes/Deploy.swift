@@ -9,7 +9,7 @@ import Yams
 
 /// Represents the `deploy` configuration for a service (primarily for Swarm orchestration).
 extension Service {
-    public struct Deploy: Codable, Hashable {
+    public struct Deploy: Codable, Sendable, Equatable, Hashable {
         /// Endpoint mode for service discovery (e.g., 'vip', 'dnsrr')
         public var endpoint_mode: String?
         /// Metadata labels for the service
@@ -138,7 +138,7 @@ extension Service.Deploy: NodeConvertible {
 // MARK: - DeployPlacement
 
 extension Service {
-    public struct DeployPlacement: Codable, Hashable {
+    public struct DeployPlacement: Codable, Sendable, Equatable, Hashable {
         /// List of constraints
         public var constraints: [String]?
         /// List of preferences
@@ -197,7 +197,7 @@ extension Service.DeployPlacement: NodeConvertible {
 // MARK: - DeployPlacementPreference
 
 extension Service {
-    public struct DeployPlacementPreference: Codable, Hashable {
+    public struct DeployPlacementPreference: Codable, Sendable, Equatable, Hashable {
         /// Spread placement preference
         public var spread: String?
 
@@ -235,7 +235,7 @@ extension Service.DeployPlacementPreference: NodeConvertible {
 // MARK: - DeployUpdateConfig
 
 extension Service {
-    public struct DeployUpdateConfig: Codable, Hashable {
+    public struct DeployUpdateConfig: Codable, Sendable, Equatable, Hashable {
         /// Number of tasks updated simultaneously
         public var parallelism: Int?
         /// Time to wait between updating a group of tasks
@@ -328,7 +328,7 @@ extension Service.DeployUpdateConfig: NodeConvertible {
 // MARK: - DeployRollbackConfig
 
 extension Service {
-    public struct DeployRollbackConfig: Codable, Hashable {
+    public struct DeployRollbackConfig: Codable, Sendable, Equatable, Hashable {
         /// Number of tasks rolled back simultaneously
         public var parallelism: Int?
         /// Time to wait between rolling back a group of tasks

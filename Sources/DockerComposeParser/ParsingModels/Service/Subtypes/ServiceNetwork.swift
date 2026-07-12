@@ -10,7 +10,7 @@ import Yams
 /// Service-specific network options for Compose object-form networks.
 extension Service {
     // https://docs.docker.com/reference/compose-file/services/#networks
-    public struct Network: Codable, Hashable {
+    public struct Network: Codable, Sendable, Equatable, Hashable {
         /// Additional DNS aliases requested for this service on the network.
         public var aliases: [String]?
 

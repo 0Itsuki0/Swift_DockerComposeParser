@@ -10,7 +10,7 @@ import Yams
 /// Represents the `deploy` configuration for a service (primarily for Swarm orchestration).
 extension Service {
  
-    public struct DeployRestartPolicy: Codable, Hashable {
+    public struct DeployRestartPolicy: Codable, Sendable, Equatable, Hashable {
         /// Condition to restart on (e.g., 'on-failure', 'any')
         public var condition: String?
         /// Delay before attempting restart

@@ -8,7 +8,7 @@
 import Yams
 
 extension Service {
-    public struct DeployResources: Codable, Hashable {
+    public struct DeployResources: Codable, Sendable, Equatable, Hashable {
         /// Hard limits on resources
         public var limits: ResourceLimits?
         /// Guarantees for resources

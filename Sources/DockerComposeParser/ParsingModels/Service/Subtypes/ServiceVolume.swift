@@ -18,7 +18,7 @@ extension Service {
     /// - **Long syntax**: a mapping with `type`, `source`, `target`, etc.
     ///
     /// Reference: https://docs.docker.com/reference/compose-file/services/#volumes
-    public struct Volume: Codable, Hashable {
+    public struct Volume: Codable, Sendable, Equatable, Hashable {
         public var type: VolumeType
         public var source: String?
         public var target: String
@@ -53,7 +53,7 @@ extension Service {
         }
     }
 
-    public enum VolumeType: String, Codable, Hashable {
+    public enum VolumeType: String, Codable, Sendable, Equatable, Hashable {
         case volume
         case bind
         case tmpfs
@@ -61,7 +61,7 @@ extension Service {
         case cluster
     }
 
-    public enum BindPropagation: String, Codable, Hashable {
+    public enum BindPropagation: String, Codable, Sendable, Equatable, Hashable {
         case rprivate
         case `private`
         case rshared
@@ -70,7 +70,7 @@ extension Service {
         case slave
     }
 
-    public struct BindOptions: Codable, Hashable {
+    public struct BindOptions: Codable, Sendable, Equatable, Hashable {
         public var propagation: BindPropagation?
         public var create_host_path: Bool?
         /// "z" (shared) or "Z" (private) SELinux relabeling.
@@ -88,7 +88,7 @@ extension Service {
         }
     }
 
-    public struct VolumeOptions: Codable, Hashable {
+    public struct VolumeOptions: Codable, Sendable, Equatable, Hashable {
         public var nocopy: Bool?
         public var subpath: String?
         public var tags: [String: ComposeTag?] = [:]
@@ -99,7 +99,7 @@ extension Service {
         }
     }
 
-    public struct TmpfsOptions: Codable, Hashable {
+    public struct TmpfsOptions: Codable, Sendable, Equatable, Hashable {
         public var size: Int?
         public var mode: Int?
         public var tags: [String: ComposeTag?] = [:]

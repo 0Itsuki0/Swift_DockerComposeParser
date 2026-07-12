@@ -8,7 +8,7 @@
 import Yams
 
 extension Service {
-    public struct ResourceLimits: Codable, Hashable {
+    public struct ResourceLimits: Codable, Sendable, Equatable, Hashable {
         /// CPU limit (e.g., "0.5")
         public var cpus: String?
         /// Memory limit (e.g., "512M")

@@ -8,7 +8,7 @@
 import Yams
 
 extension Service {
-    public struct DeviceReservation: Codable, Hashable {
+    public struct DeviceReservation: Codable, Sendable, Equatable, Hashable {
         /// Device capabilities
         public var capabilities: [String]?
         /// Device driver

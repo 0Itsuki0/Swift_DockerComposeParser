@@ -10,7 +10,7 @@ import Yams
 /// GPU devices to be allocated for container usage (`gpus`). Accepts either the
 /// literal string `all`, or a list of specific device requests.
 extension Service {
-    public struct GPU: Codable, Hashable {
+    public struct GPU: Codable, Sendable, Equatable, Hashable {
         public var all: Bool
         public var devices: [GpuDevice]?
 

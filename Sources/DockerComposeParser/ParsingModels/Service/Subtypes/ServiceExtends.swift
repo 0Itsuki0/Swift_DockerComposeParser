@@ -9,7 +9,7 @@ import Yams
 
 /// Reference to a base service definition to merge with (`extends`).
 extension Service {
-    public struct Extends: Codable, Hashable {
+    public struct Extends: Codable, Sendable, Equatable, Hashable {
         public var service: String
         public var file: String?
 

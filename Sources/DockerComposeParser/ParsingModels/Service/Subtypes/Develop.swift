@@ -9,7 +9,7 @@ import Yams
 
 /// Development-time configuration for keeping a container in sync with source (`develop`).
 extension Service {
-    public struct Develop: Codable, Hashable {
+    public struct Develop: Codable, Sendable, Equatable, Hashable {
         public var watch: [DevelopWatchItem]?
 
         public var tags: [String: ComposeTag?] = [:]

@@ -11,7 +11,7 @@ import Yams
 /// The referenced model itself is declared in the top-level `models` element;
 /// this only carries the per-service overrides.
 extension Service {
-    public struct Model: Codable, Hashable {
+    public struct Model: Codable, Sendable, Equatable, Hashable {
         /// Name of the environment variable Compose injects with the model
         /// runner's connection URL (defaults to `<MODEL_NAME>_URL` when omitted).
         public var endpoint_var: String?

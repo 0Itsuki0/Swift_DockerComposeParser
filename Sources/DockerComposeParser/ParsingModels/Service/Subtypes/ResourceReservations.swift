@@ -9,7 +9,7 @@ import Yams
 
 extension Service {
 
-    public struct ResourceReservations: Codable, Hashable {
+    public struct ResourceReservations: Codable, Sendable, Equatable, Hashable {
         /// CPU reservation (e.g., "0.25")
         public var cpus: String?
         /// Memory reservation (e.g., "256M")

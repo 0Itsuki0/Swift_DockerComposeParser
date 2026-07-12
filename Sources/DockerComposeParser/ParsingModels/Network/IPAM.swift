@@ -8,7 +8,7 @@
 import Yams
 
 extension Network {
-    public struct IPAM: Codable, Hashable {
+    public struct IPAM: Codable, Sendable, Equatable, Hashable {
         public var driver: String?
         public var config: [IPAMConfig]?
         // optional value to handle reset
@@ -26,7 +26,7 @@ extension Network {
         }
     }
 
-    public struct IPAMConfig: Codable, Hashable {
+    public struct IPAMConfig: Codable, Sendable, Equatable, Hashable {
         public var subnet: String?
         public var ip_range: String?
         public var gateway: String?
