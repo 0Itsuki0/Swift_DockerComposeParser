@@ -37,7 +37,7 @@ extension Service {
         /// Disable build cache usage
         public var no_cache: Bool?
         /// Target platforms for the build
-        public var platforms: [String]?
+        public var platforms: [Service.Platform]?
         /// Run the build container in privileged mode
         public var privileged: Bool?
         /// Always attempt to pull a newer version of the image
@@ -68,7 +68,7 @@ extension Service {
             labels: [String: String?]? = nil,
             network: String? = nil,
             no_cache: Bool? = nil,
-            platforms: [String]? = nil,
+            platforms: [Service.Platform]? = nil,
             privileged: Bool? = nil,
             pull: Bool? = nil,
             secrets: [Service.Secret]? = nil,
@@ -232,20 +232,24 @@ extension Service.Build: NodeConvertible {
             for: CodingKeys.network
         )
 
-        self.no_cache = try? mapping.value(for: CodingKeys.no_cache).bool(envs: envs)
+        self.no_cache = try? mapping.value(for: CodingKeys.no_cache).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.no_cache.stringValue] = mapping.composeTag(
             for: CodingKeys.no_cache
         )
 
         self.platforms = try? mapping.value(for: CodingKeys.platforms).array(
-            of: String.self,
+            of: Service.Platform.self,
             envs: envs
         )
         self.tags[CodingKeys.platforms.stringValue] = mapping.composeTag(
             for: CodingKeys.platforms
         )
 
-        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool(envs: envs)
+        self.privileged = try? mapping.value(for: CodingKeys.privileged).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.privileged.stringValue] = mapping.composeTag(
             for: CodingKeys.privileged
         )

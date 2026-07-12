@@ -82,6 +82,20 @@ struct ServiceBuildTestSuite {
         let build = try Service.Build(node!, envs: ["REGISTRY": "myregistry"])
         #expect(build.cache_from?.first?.options["ref"] == "myregistry/myapp:cache")
     }
+    
+    @Test("Test Build parsing - platforms")
+    func parsePlatforms() throws {
+        let yaml = """
+          context: "."
+          platforms:
+            - "linux/amd64"
+            - "linux/arm64"        
+        """
+        let node = try Yams.compose(yaml: yaml)
+        let build = try Service.Build(node!, envs: [:])
+        #expect(build.platforms?.count == 2)
+        #expect(build.platforms == [.init(os: "linux", arch: "amd64"), .init(os: "linux", arch: "arm64")])
+    }
 
 
     @Test("Test Build parsing - long syntax with only context")

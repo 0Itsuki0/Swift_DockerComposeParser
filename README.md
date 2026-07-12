@@ -5,6 +5,27 @@ A Swift parser for Docker Compose files.
 > [!IMPORTANT]
 > This parser only supports the Compose file format as documented by Docker as of **Jul. 11, 2026**.
 
+## Supported
+
+- Multi-compose resolution:
+  - `include`
+  - `extends`
+  - multi-file merge (equivalent to `-f` on the command line)
+- Custom Compose merge tags: `!reset`, `!override`
+- [Unique resources](https://docs.docker.com/reference/compose-file/merge/#unique-resources) during merge
+- Automatically resolve all YAML environment variables, including `COMPOSE_PROJECT_NAME` as defined by the top-level `name` element
+- Automatically resolve relative path to absolute.
+- Support short syntax or long syntax, for example, for [`configs`](https://docs.docker.com/reference/compose-file/services/#configs) of the `services`.
+- support list-form (`KEY=value`) or dictionary form (`KEY:value`), for example, for [`args`](https://docs.docker.com/reference/compose-file/build/#args) of `build`
+
+
+## Not Supported
+
+- Remote Compose files (e.g. git, OCI)
+- Legacy Compose file normalization (e.g. deprecated `version` handling)
+
+
+
 
 ## Installation
  
@@ -39,6 +60,17 @@ Then add `DockerComposeParser` to your target's dependencies:
 
 ## Usage
 
+Use the `ComposeParser.loadCompose` to load a single Compose file, or use `ComposeParser.loadComposes` to load multiple (similar to the `-f` on the command line).
+
+**Returning:**
+
+A DockerCompose object with the parsed resources where
+- variables in the YAML resolved
+- relative path resolved
+- `include` resolved and merged
+- `extends` resolved and merged
+- any additional compose files (similar to the ones passed through the `-f` command) resolved and merged
+ 
 ```swift
 import DockerComposeParser
 
@@ -50,6 +82,7 @@ let compose = try ComposeParser.loadCompose(
 )
 
 // Load multiple Compose files, similar to `-f` on the command line
+// order of the otherComposes will be the order of applying override, ie: the ones coming later has the highest priority
 let compose = try ComposeParser.loadComposes(
     composeURL,
     otherComposes: [overrideURL],
@@ -63,25 +96,23 @@ let compose = try ComposeParser.loadComposes(
 Given a `compose.yaml`:
 
 ```yaml
+version: "3.8"
 name: myapp
-
 services:
   web:
     image: nginx:latest
     ports:
       - "80:80"
     depends_on:
-      db:
-        required: true
+      - api
+  api:
+    build: ./api
     environment:
       - NODE_ENV=production
-    volumes:
-      - ./html:/usr/share/nginx/html:ro
-
-  db:
-    image: postgres:latest
-    environment:
-      POSTGRES_PASSWORD: example
+volumes:
+  db-data:
+networks:
+  frontend:
 ```
 
 Loading it:
@@ -96,38 +127,50 @@ let compose = try ComposeParser.loadCompose(
 
 produces a `DockerCompose` whose relevant fields look like:
 
-```swift
-compose.name                                          // "myapp"
-
-compose.services["web"]??.image                       // "nginx:latest"
-compose.services["web"]??.ports?.first?.target         // "80"
-compose.services["web"]??.ports?.first?.published      // "80"
-compose.services["web"]??.environment?["NODE_ENV"]      // "production"
-compose.services["web"]??.volumes?.first?.source        // "./html" (resolved to an absolute path)
-compose.services["web"]??.volumes?.first?.target        // "/usr/share/nginx/html"
-compose.services["web"]??.volumes?.first?.read_only     // true
-compose.services["web"]??.depends_on?["db"]??.required  // true
-
-compose.services["db"]??.image                          // "postgres:latest"
-compose.services["db"]??.environment?["POSTGRES_PASSWORD"] // "example"
+```json
+{
+  "name" : "myapp",
+  "networks" : {
+    "frontend" : null
+  },
+  "volumes" : {
+    "db-data" : null
+  },
+  "version" : "3.8",
+  "services" : {
+    "api" : {
+      "build" : {
+        "context" : ".\/api",
+        "tags" : {
+          "context" : null
+        }
+      },
+      "environment" : {
+        "NODE_ENV" : "production"
+      }
+    },
+    "web" : {
+      "image" : "nginx:latest",
+      "ports" : [
+        {
+          "tags" : {
+            "app_protocol" : null,
+            "host_ip" : null,
+            "name" : null,
+            "mode" : null,
+            "published" : null,
+            "protocol" : null,
+            "target" : null
+          },
+          "published" : "80",
+          "target" : "80"
+        }
+      ],
+      "depends_on" : {
+        "api" : {
+        }
+      }
+    }
+  }
+}
 ```
-
-`ComposeParser` automatically:
-- Resolves the `environment` list-form (`KEY=value`) into a `[String: String]` map
-- Resolves relative paths (like `./html` above) to absolute paths based on the project directory
-- Validates that every `depends_on` entry (here, `web`'s dependency on `db`) resolves to a service that actually exists — throwing otherwise
-
-## Supported
-
-- Multi-compose resolution:
-  - `include`
-  - `extends`
-  - multi-file merge (equivalent to `-f` on the command line)
-- Custom Compose merge tags: `!reset`, `!override`
-- [Unique resources](https://docs.docker.com/reference/compose-file/merge/#unique-resources) during merge
-- Resolving YAML environment variables, including `COMPOSE_PROJECT_NAME` as defined by the top-level `name` element
-
-## Not Supported
-
-- Remote Compose files (e.g. git, OCI)
-- Legacy Compose file normalization (e.g. deprecated `version` handling)
