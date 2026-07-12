@@ -488,6 +488,7 @@ struct ServiceTestSuite {
             image: nginx:latest
             container_name: web
             restart: unless-stopped
+            platform: windows/amd64
             ports:
               - "80:80"
               - "443:443"
@@ -506,6 +507,7 @@ struct ServiceTestSuite {
         let service = try Service(node!, envs: [:])
 
         #expect(service.image == "nginx:latest")
+        #expect(service.platform == .init(os: "windows", arch: "amd64"))
         #expect(service.container_name == "web")
         #expect(service.restart == "unless-stopped")
         #expect(service.ports?.count == 2)

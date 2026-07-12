@@ -80,7 +80,7 @@ public struct Service: Codable, Sendable, Equatable, Hashable {
     public var working_dir: String?
 
     /// Platform architecture for the service
-    public var platform: String?
+    public var platform: Platform?
 
     /// Service-specific config usage (primarily for Swarm)
     public var configs: [Service.Config]?
@@ -328,7 +328,7 @@ public struct Service: Codable, Sendable, Equatable, Hashable {
         privileged: Bool? = nil,
         read_only: Bool? = nil,
         working_dir: String? = nil,
-        platform: String? = nil,
+        platform: Platform? = nil,
         configs: [Config]? = nil,
         secrets: [Secret]? = nil,
         stdin_open: Bool? = nil,
@@ -722,7 +722,8 @@ extension Service: NodeConvertible {
             for: CodingKeys.working_dir
         )
 
-        self.platform = try? mapping.value(for: CodingKeys.platform).string(
+        self.platform = try? Service.Platform(
+            mapping.value(for: CodingKeys.platform),
             envs: envs
         )
         self.tags[CodingKeys.platform.stringValue] = mapping.composeTag(
