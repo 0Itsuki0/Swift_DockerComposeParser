@@ -18,18 +18,22 @@ extension Service {
         /// Specific device IDs
         public var device_ids: [String]?
 
+        public var options: [String: String?]?
+
         public var tags: [String: ComposeTag?] = [:]
 
         public init(
-            capabilities: [String]?,
-            driver: String?,
-            count: String?,
-            device_ids: [String]?
+            capabilities: [String]? = nil,
+            driver: String? = nil,
+            count: String? = nil,
+            device_ids: [String]? = nil,
+            options: [String: String?] = [:],
         ) {
             self.capabilities = capabilities
             self.driver = driver
             self.count = count
             self.device_ids = device_ids
+            self.options = options
         }
     }
 
@@ -72,5 +76,15 @@ extension Service.DeviceReservation: NodeConvertible {
         self.tags[CodingKeys.device_ids.stringValue] = mapping.composeTag(
             for: CodingKeys.device_ids
         )
+
+        self.options = try? mapping.value(for: CodingKeys.options).dictionary(
+            envs: envs,
+            isEnv: false
+        )
+
+        self.tags[CodingKeys.options.stringValue] = mapping.composeTag(
+            for: CodingKeys.options
+        )
+
     }
 }

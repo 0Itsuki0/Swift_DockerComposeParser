@@ -61,7 +61,8 @@ extension Service {
         case cluster
     }
 
-    public enum BindPropagation: String, Codable, Sendable, Equatable, Hashable {
+    public enum BindPropagation: String, Codable, Sendable, Equatable, Hashable
+    {
         case rprivate
         case `private`
         case rshared
@@ -167,7 +168,9 @@ extension Service.VolumeOptions: NodeConvertible {
             )
         }
 
-        self.nocopy = try? mapping.value(for: CodingKeys.nocopy).bool(envs: envs)
+        self.nocopy = try? mapping.value(for: CodingKeys.nocopy).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.nocopy.stringValue] = mapping.composeTag(
             for: CodingKeys.nocopy
         )
@@ -271,7 +274,9 @@ extension Service.Volume: NodeConvertible {
             for: CodingKeys.target
         )
 
-        self.read_only = try? mapping.value(for: CodingKeys.read_only).bool(envs: envs)
+        self.read_only = try? mapping.value(for: CodingKeys.read_only).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.read_only.stringValue] = mapping.composeTag(
             for: CodingKeys.read_only
         )
@@ -374,6 +379,7 @@ extension Service.Volume {
     //   letter like `C:\`).
     // - OPTIONS is a comma-separated list such as `ro`, `rw`, `z`, `Z`,
     //   `nocopy`, `cached`, `delegated`, `consistent`.
+    // https://docs.docker.com/reference/compose-file/services/#short-syntax-5
     private static func parseShortSyntax(_ raw: String) throws -> Service.Volume
     {
         let components = splitRespectingWindowsDrive(raw)
@@ -392,6 +398,7 @@ extension Service.Volume {
         let optionsString: String?
 
         switch components.count {
+        // anonymous volume
         case 1:
             source = nil
             target = components[0]
@@ -461,7 +468,7 @@ extension Service.Volume {
 }
 
 extension Service.Volume {
-    
+
     func merge(with update: Service.Volume) -> Service.Volume {
         guard let old = try? self.toDictionary(),
             let new = try? update.toDictionary()

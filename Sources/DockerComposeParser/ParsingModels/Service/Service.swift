@@ -286,7 +286,7 @@ public struct Service: Codable, Sendable, Equatable, Hashable {
     public var sysctls: [String: String?]?
 
     /// Mount points to mount as `tmpfs` inside the container. Accepts a single value or a list.
-    public var tmpfs: [String]?
+    public var tmpfs: [Tmpfs]?
 
     /// Ulimit overrides keyed by ulimit name (e.g. "nofile", "nproc").
     // optional value to handle reset
@@ -393,7 +393,7 @@ public struct Service: Codable, Sendable, Equatable, Hashable {
         stop_signal: String? = nil,
         storage_opt: [String: String]? = nil,
         sysctls: [String: String]? = nil,
-        tmpfs: [String]? = nil,
+        tmpfs: [Tmpfs]? = nil,
         ulimits: [String: Ulimit]? = nil,
         use_api_socket: Bool? = nil,
         userns_mode: String? = nil,
@@ -1193,7 +1193,7 @@ extension Service: NodeConvertible {
             for: CodingKeys.sysctls
         )
 
-        self.tmpfs = try? mapping.value(for: CodingKeys.tmpfs).array(envs: envs)
+        self.tmpfs = try? mapping.value(for: CodingKeys.tmpfs).array(of: Tmpfs.self, envs: envs)
         self.tags[CodingKeys.tmpfs.stringValue] = mapping.composeTag(
             for: CodingKeys.tmpfs
         )

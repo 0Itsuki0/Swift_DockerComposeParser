@@ -460,6 +460,44 @@ struct ServiceTestSuite {
         #expect(service.deploy?.resources?.limits?.memory == "512M")
     }
 
+    
+    @Test("Test Service parsing - tmpfs as an array")
+    func parseTmpfsList() throws {
+        let yaml = """
+            tmpfs:
+              - /data:mode=755,uid=1009,gid=1009
+              - /run
+            """
+        let node = try Yams.compose(yaml: yaml)
+        let service = try Service(node!, envs: [:])
+        #expect(service.tmpfs?.count == 2)
+        #expect(service.tmpfs?[0].path == "/data")
+        #expect(service.tmpfs?[0].options == [
+            "mode": "755",
+            "uid": "1009",
+            "gid": "1009",
+        ])
+        #expect(service.tmpfs?[1].path == "/run")
+    }
+    
+    @Test("Test Service parsing - tmpfs as a string")
+    func parseTmpfsSingle() throws {
+        let yaml = """
+            tmpfs: /data:mode=755,uid=1009,gid=1009
+            """
+        let node = try Yams.compose(yaml: yaml)
+        let service = try Service(node!, envs: [:])
+        #expect(service.tmpfs?.count == 1)
+        #expect(service.tmpfs?[0].path == "/data")
+        #expect(service.tmpfs?[0].options == [
+            "mode": "755",
+            "uid": "1009",
+            "gid": "1009",
+        ])
+    }
+
+    
+    
     @Test("Test Service parsing - env var interpolation across fields")
     func parseEnvInterpolation() throws {
         let yaml = """
