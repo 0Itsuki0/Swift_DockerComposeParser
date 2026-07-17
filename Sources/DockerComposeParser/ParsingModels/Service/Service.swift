@@ -44,7 +44,7 @@ public struct Service: Codable, Sendable, Equatable, Hashable {
     public var command: [String]?
 
     /// Service dependency options keyed by dependency service name.
-    // optional value to handle reset
+    /// optional value to handle reset
     public var depends_on: [String: Dependency?]?
 
     /// User or UID to run the container as

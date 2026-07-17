@@ -116,19 +116,20 @@ struct ServiceDependencyTestSuite {
     func parseEmpty() throws {
         let node = try Yams.compose(yaml: "{}")
         let dep = try Service.Dependency(node!, envs: [:])
-        #expect(dep.condition == nil)
+        #expect(dep.condition == .default)
         #expect(dep.restart == nil)
-        #expect(dep.required == nil)
+        #expect(dep.required == true)
     }
 
     @Test(
-        "Test Dependency parsing - invalid condition value yields nil condition"
+        "Test Dependency parsing - invalid condition value throws"
     )
     func parseInvalidCondition() throws {
         let yaml = "condition: not_a_real_condition"
         let node = try Yams.compose(yaml: yaml)
-        let dep = try Service.Dependency(node!, envs: [:])
-        #expect(dep.condition == nil)
+        #expect(throws: (any Error).self) {
+            try Service.Dependency(node!, envs: [:])
+        }
     }
 
     @Test(

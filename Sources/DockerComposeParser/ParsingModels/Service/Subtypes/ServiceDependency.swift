@@ -12,20 +12,20 @@ extension Service {
     public struct Dependency: Codable, Sendable, Equatable, Hashable {
 
         /// Dependency condition, for example `service_started` or `service_healthy`.
-        public var condition: DependencyCondition?
+        public var condition: DependencyCondition
 
         /// Compose optional restart hint for dependency updates.
         public var restart: Bool?
 
         /// Compose optional required hint. Defaults to true in Docker Compose.
-        public var required: Bool?
+        public var required: Bool
 
         public var tags: [String: ComposeTag?] = [:]
 
         public init(
-            condition: DependencyCondition? = nil,
+            condition: DependencyCondition = .default,
             restart: Bool? = nil,
-            required: Bool? = nil
+            required: Bool = true
         ) {
             self.condition = condition
             self.restart = restart
@@ -33,7 +33,9 @@ extension Service {
         }
     }
 
-    public enum DependencyCondition: String, Codable, Sendable, Equatable, Sendable, Hashable {
+    public enum DependencyCondition: String, Codable, Sendable, Equatable,
+        Sendable, Hashable
+    {
         case service_started
         case service_healthy
         case service_completed_successfully
@@ -57,22 +59,37 @@ extension Service.Dependency: NodeConvertible {
         if let conditionString = try? mapping.value(for: CodingKeys.condition)
             .string(envs: envs)
         {
-            self.condition = Service.DependencyCondition(
-                rawValue: conditionString
-            )
+            guard
+                let condition = Service.DependencyCondition(
+                    rawValue: conditionString
+                )
+            else {
+                throw DecodingError.dataCorrupted(
+                    .init(
+                        codingPath: [],
+                        debugDescription:
+                            "Invalid service dependency condition."
+                    )
+                )
+            }
+            self.condition = condition
         } else {
-            self.condition = nil
+            self.condition = .default
         }
         self.tags[CodingKeys.condition.stringValue] = mapping.composeTag(
             for: CodingKeys.condition
         )
 
-        self.restart = try? mapping.value(for: CodingKeys.restart).bool(envs: envs)
+        self.restart = try? mapping.value(for: CodingKeys.restart).bool(
+            envs: envs
+        )
         self.tags[CodingKeys.restart.stringValue] = mapping.composeTag(
             for: CodingKeys.restart
         )
 
-        self.required = try? mapping.value(for: CodingKeys.required).bool(envs: envs)
+        self.required =
+            (try? mapping.value(for: CodingKeys.required).bool(envs: envs))
+            ?? true
         self.tags[CodingKeys.required.stringValue] = mapping.composeTag(
             for: CodingKeys.required
         )
