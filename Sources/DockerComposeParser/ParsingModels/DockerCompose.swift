@@ -8,7 +8,7 @@
 import Foundation
 import Yams
 
-public struct DockerCompose: Codable, Sendable, Equatable {
+public struct DockerCompose: Codable, Sendable, Equatable, Hashable {
     /// The Compose file format version (e.g., '3.8')
     public var version: String?
     /// Optional project name

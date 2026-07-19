@@ -35,6 +35,8 @@ extension Service {
         /// Timeout for each check
         public var timeout: String?
 
+        public var disabled: Bool?
+
         public var tags: [String: ComposeTag?] = [:]
 
         public init(
@@ -42,17 +44,22 @@ extension Service {
             start_period: String? = nil,
             interval: String? = nil,
             retries: Int? = nil,
-            timeout: String? = nil
+            timeout: String? = nil,
+            disabled: Bool? = nil
         ) {
             self.test = test
             self.start_period = start_period
             self.interval = interval
             self.retries = retries
             self.timeout = timeout
+            self.disabled = disabled
         }
 
         public var isDisabled: Bool {
-            test?.first?.uppercased() == "NONE"
+            if self.disabled == true {
+                return true
+            }
+            return test?.first?.uppercased() == "NONE"
         }
 
         public var execArguments: [String]? {
@@ -71,6 +78,38 @@ extension Service {
                 return test
             }
         }
+
+        public static func parseDuration(
+            _ value: String?,
+            default defaultValue: TimeInterval
+        ) -> TimeInterval {
+            guard let value, !value.isEmpty else {
+                return defaultValue
+            }
+
+            if let seconds = TimeInterval(value) {
+                return seconds
+            }
+
+            let range = NSRange(value.startIndex..<value.endIndex, in: value)
+            let matches = Self.durationRegex.matches(in: value, range: range)
+            guard !matches.isEmpty else {
+                return defaultValue
+            }
+
+            return matches.reduce(0) { total, match in
+                guard
+                    let amountRange = Range(match.range(at: 1), in: value),
+                    let unitRange = Range(match.range(at: 2), in: value),
+                    let amount = TimeInterval(value[amountRange])
+                else {
+                    return total
+                }
+                return total + amount
+                    * (Self.durationUnits[String(value[unitRange])] ?? 0)
+            }
+        }
+
     }
 }
 
@@ -142,6 +181,13 @@ extension Service.Healthcheck: NodeConvertible {
         )
         self.tags[CodingKeys.timeout.stringValue] = mapping.composeTag(
             for: CodingKeys.timeout
+        )
+
+        self.disabled = try? mapping.value(for: CodingKeys.disabled).bool(
+            envs: envs
+        )
+        self.tags[CodingKeys.disabled.stringValue] = mapping.composeTag(
+            for: CodingKeys.disabled
         )
 
     }
